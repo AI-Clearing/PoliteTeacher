@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 # Modified by Youngwan Lee (ETRI), 2020. All Rights Reserved.
+# Modified by Dominik Filipiak (AI Clearing), 2021. All Rights Reserved.
 import logging
 import os
 from collections import OrderedDict
@@ -27,6 +28,8 @@ from centermask.evaluation import (
 from detectron2.modeling import GeneralizedRCNNWithTTA
 from detectron2.checkpoint import DetectionCheckpointer
 from centermask.config import get_cfg
+
+from centermask.engine.trainer import BaselineTrainer
 
 
 class Trainer(DefaultTrainer):
@@ -118,6 +121,10 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
+    if cfg.SEMISUPNET.Trainer == "baseline":
+        Trainer = BaselineTrainer
+    else:
+        pass  # we're training oracle (fully supervised) model
 
     if args.eval_only:
         model = Trainer.build_model(cfg)

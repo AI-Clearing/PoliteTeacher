@@ -84,3 +84,22 @@ _C.MODEL.ROI_MASKIOU_HEAD.NUM_CONV = 4
 # ---------------------------------------------------------------------------- #
 _C.MODEL.ROI_KEYPOINT_HEAD.IN_FEATURES = ["p2", "p3", "p4", "p5"]
 _C.MODEL.ROI_KEYPOINT_HEAD.ASSIGN_CRITERION = "ratio"
+
+# ---------------------------------------------------------------------------- #
+# Dataloader (from Unbiased Teacher)
+# ---------------------------------------------------------------------------- #
+_C.DATALOADER = CN()
+_C.DATALOADER.SUP_PERCENT = 100.0
+_C.DATALOADER.RANDOM_DATA_SEED = 1
+_C.DATALOADER.RANDOM_DATA_SEED_PATH = "dataseed/COCO_supervision.txt"
+_C.DATALOADER.ASPECT_RATIO_GROUPING = True
+_C.DATALOADER.FILTER_EMPTY_ANNOTATIONS = True
+_C.DATALOADER.NUM_WORKERS = 4
+_C.DATALOADER.REPEAT_THRESHOLD = 0.0
+_C.DATALOADER.SAMPLER_TRAIN = "TrainingSampler"
+
+# ---------------------------------------------------------------------------- #
+# Semi-supervised learning
+# ---------------------------------------------------------------------------- #
+_C.SEMISUPNET = CN()
+_C.SEMISUPNET.Trainer = "DefaultTrainer"
