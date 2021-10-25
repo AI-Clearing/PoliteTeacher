@@ -19,6 +19,5 @@ SOLVER:
   MAX_ITER: 360000
 OUTPUT_DIR: "output/centermask-semisup/baseline-CenterMask-Lite-V-19-slim-ms-4x"
 TEST:
-  EVAL_PERIOD: 500
-
+  EVAL_PERIOD: 1000
 
