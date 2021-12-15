@@ -99,7 +99,17 @@ _C.DATALOADER.REPEAT_THRESHOLD = 0.0
 _C.DATALOADER.SAMPLER_TRAIN = "TrainingSampler"
 
 # ---------------------------------------------------------------------------- #
+# Datasets (from Unbiased Teacher)
+# ---------------------------------------------------------------------------- #
+_C.DATASETS = CN()
+_C.DATASETS.CROSS_DATASET = False
+_C.DATASETS.TRAIN = ("coco_2017_train",)
+_C.DATASETS.TEST = ("coco_2017_val",)
+
+# ---------------------------------------------------------------------------- #
 # Semi-supervised learning
 # ---------------------------------------------------------------------------- #
 _C.SEMISUPNET = CN()
 _C.SEMISUPNET.Trainer = "DefaultTrainer"
+_C.SOLVER.IMG_PER_BATCH_LABEL = 32
+_C.SOLVER.IMG_PER_BATCH_UNLABEL = 32

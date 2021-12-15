@@ -29,7 +29,7 @@ from detectron2.modeling import GeneralizedRCNNWithTTA
 from detectron2.checkpoint import DetectionCheckpointer
 from centermask.config import get_cfg
 
-from centermask.engine.trainer import BaselineTrainer
+from centermask.engine.trainer import BaselineTrainer, CPSTrainer
 
 
 class Trainer(DefaultTrainer):
@@ -123,8 +123,10 @@ def main(args):
     cfg = setup(args)
     if cfg.SEMISUPNET.Trainer == "baseline":
         Trainer = BaselineTrainer
+    if cfg.SEMISUPNET.Trainer == "cps":
+        Trainer = CPSTrainer
     else:
-        pass  # we're training oracle (fully supervised) model
+        raise Exception("Trainer not supported. To train oracle run the Centermask2 code.") # we're training oracle (fully supervised) model    
 
     if args.eval_only:
         model = Trainer.build_model(cfg)
