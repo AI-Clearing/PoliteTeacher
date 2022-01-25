@@ -123,10 +123,10 @@ def main(args):
     cfg = setup(args)
     if cfg.SEMISUPNET.Trainer == "baseline":
         Trainer = BaselineTrainer
-    if cfg.SEMISUPNET.Trainer == "cps":
+    elif cfg.SEMISUPNET.Trainer == "cps":
         Trainer = CPSTrainer
     else:
-        raise Exception("Trainer not supported. To train oracle run the Centermask2 code.") # we're training oracle (fully supervised) model    
+        raise Exception(f"Trainer {cfg.SEMISUPNET.Trainer} not supported. To train oracle run the Centermask2 code.") # we're training oracle (fully supervised) model    
 
     if args.eval_only:
         model = Trainer.build_model(cfg)
