@@ -143,7 +143,7 @@ class DatasetMapperTwoCropSeparate(DatasetMapper):
         # detectron2, which use numpy format for images. Thus, we need to
         # convert to PIL format first.
         image_pil = Image.fromarray(image_weak_aug.astype("uint8"), "RGB")
-        image_strong_aug = np.array(self.strong_augmentation(image_pil))
+        image_strong_aug = np.array(self.strong_augmentation(image_pil)) # TODO maski nie mają włączanej mocniejszej autgmentacji
         dataset_dict["image"] = torch.as_tensor(
             np.ascontiguousarray(image_strong_aug.transpose(2, 0, 1))
         )
@@ -154,4 +154,5 @@ class DatasetMapperTwoCropSeparate(DatasetMapper):
         )
         assert dataset_dict["image"].size(1) == dataset_dict_key["image"].size(1)
         assert dataset_dict["image"].size(2) == dataset_dict_key["image"].size(2)
-        return (dataset_dict, dataset_dict_key)
+        return (dataset_dict, dataset_dict_key)  # TODO xd, nazwa cudowna dataset_dict_key zwraca drugi obrazek który jest zaugumentowany
+

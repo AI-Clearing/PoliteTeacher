@@ -33,7 +33,12 @@ from centermask.evaluation import (
     CityscapesSemSegEvaluator,
     COCOEvaluator,
 )
-from ubteacher.modeling.meta_arch.ts_ensemble import EnsembleTSModel
+
+# hacky way to register
+from centermask.modeling.meta_arch.rcnn import TwoStagePseudoLabGeneralizedRCNN
+from centermask.modeling.meta_arch.ts_ensemble import EnsembleTSModel
+from centermask.modeling.proposal_generator.rpn import PseudoLabRPN
+from centermask.modeling.roi_heads.roi_heads import StandardROIHeadsPseudoLab
 
 
 class Trainer(DefaultTrainer):
@@ -143,10 +148,11 @@ def main(args):
         return res
 
     trainer = Trainer(cfg)
-    trainer.resume_or_load(resume=args.resume)
+    # TODO turn on resume
+    # trainer.resume_or_load(resume=args.resume)
 
-    if cfg.TEST.AUG.ENABLED:
-        trainer.register_hooks([hooks.EvalHook(0, lambda: trainer.test_with_TTA(cfg, trainer.model))])
+    # if cfg.TEST.AUG.ENABLED:
+    #     trainer.register_hooks([hooks.EvalHook(0, lambda: trainer.test_with_TTA(cfg, trainer.model))])
 
     return trainer.train()
 

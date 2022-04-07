@@ -1,27 +1,22 @@
 # Copyright (c) Youngwan Lee (ETRI) All Rights Reserved.
-import torch
-from torch import nn
 from typing import Dict, List, Optional, Tuple, Union
-import numpy as np
 
-from detectron2.modeling.roi_heads import (
-    ROI_HEADS_REGISTRY,
-)
-from detectron2.structures import Boxes, Instances, pairwise_iou, ImageList
-from detectron2.utils.events import get_event_storage
-from detectron2.modeling.matcher import Matcher
-from detectron2.modeling.sampling import subsample_labels
+import numpy as np
+import torch
 from detectron2.layers import ShapeSpec
+from detectron2.modeling.matcher import Matcher
+from detectron2.modeling.roi_heads import ROI_HEADS_REGISTRY
+from detectron2.modeling.sampling import subsample_labels
+from detectron2.structures import Boxes, ImageList, Instances, pairwise_iou
+from detectron2.utils.events import get_event_storage
+from torch import nn
+
 # from detectron2.modeling.roi_heads.keypoint_head import build_keypoint_head
 from .keypoint_head import build_keypoint_head
-
-
-from .mask_head import build_mask_head, mask_rcnn_loss, mask_rcnn_inference
-from .maskiou_head import build_maskiou_head, mask_iou_loss, mask_iou_inference
-from .proposal_utils import add_ground_truth_to_proposals
+from .mask_head import build_mask_head, mask_rcnn_inference, mask_rcnn_loss
+from .maskiou_head import build_maskiou_head, mask_iou_inference, mask_iou_loss
 from .pooler import ROIPooler
-
-
+from .proposal_utils import add_ground_truth_to_proposals
 
 __all__ = ["CenterROIHeads"]
 
@@ -171,7 +166,7 @@ class ROIHeads(nn.Module):
         return sampled_idxs, gt_classes[sampled_idxs]
 
     @torch.no_grad()
-    def label_and_sample_proposals(self, proposals, targets):
+    def label_and_sample_proposals(self, proposals, targets, branch):
         """
         Prepare some proposals to be used to train the ROI heads.
         It performs box matching between `proposals` and `targets`, and assigns
@@ -254,8 +249,8 @@ class ROIHeads(nn.Module):
 
         # Log the number of fg/bg samples that are selected for training ROI heads
         storage = get_event_storage()
-        storage.put_scalar("roi_head/num_fg_samples", np.mean(num_fg_samples))
-        storage.put_scalar("roi_head/num_bg_samples", np.mean(num_bg_samples))
+        storage.put_scalar("roi_head/num_fg_samples" + branch, np.mean(num_fg_samples))
+        storage.put_scalar("roi_head/num_bg_samples" + branch, np.mean(num_bg_samples))
 
         return proposals_with_gt
 
@@ -387,16 +382,18 @@ class CenterROIHeads(ROIHeads):
         features: Dict[str, torch.Tensor],
         proposals: List[Instances],
         targets: Optional[List[Instances]] = None,
+        branch: Optional[str] = None, 
+        compute_loss: bool = False
     ) -> Tuple[List[Instances], Dict[str, torch.Tensor]]:
         """
         See :class:`ROIHeads.forward`.
         """
         del images
-        if self.training:
-            proposals = self.label_and_sample_proposals(proposals, targets)
+        if self.training and compute_loss:
+            proposals = self.label_and_sample_proposals(proposals, targets, branch)
         del targets
 
-        if self.training:
+        if self.training or compute_loss:
             if self.maskiou_on:
                 losses, mask_features, selected_mask, labels, maskiou_targets = self._forward_mask(features, proposals)
                 losses.update(self._forward_maskiou(mask_features, proposals, selected_mask, labels, maskiou_targets))
@@ -430,8 +427,9 @@ class CenterROIHeads(ROIHeads):
                 the same `Instances` objects, with extra
                 fields such as `pred_masks` or `pred_keypoints`.
         """
-        assert not self.training
-        assert instances[0].has("pred_boxes") and instances[0].has("pred_classes")
+        # NOTe: testing bc we need 
+        # assert not self.training
+        # assert instances[0].has("pred_boxes") and instances[0].has("pred_classes")
 
         if self.maskiou_on:
             instances, mask_features = self._forward_mask(features, instances)

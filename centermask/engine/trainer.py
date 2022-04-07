@@ -188,19 +188,21 @@ class UBTeacherTrainer(DefaultTrainer):
     # =====================================================
     def threshold_bbox(self, proposal_bbox_inst, thres=0.7, proposal_type="roih"):
         if proposal_type == "rpn":
-            valid_map = proposal_bbox_inst.objectness_logits > thres
+            valid_map = proposal_bbox_inst.scores > thres
 
             # create instances containing boxes and gt_classes
             image_shape = proposal_bbox_inst.image_size
             new_proposal_inst = Instances(image_shape)
 
             # create box
-            new_bbox_loc = proposal_bbox_inst.proposal_boxes.tensor[valid_map, :]
+            new_bbox_loc = proposal_bbox_inst.pred_boxes.tensor[valid_map, :]
             new_boxes = Boxes(new_bbox_loc)
 
             # add boxes to instances
             new_proposal_inst.gt_boxes = new_boxes
-            new_proposal_inst.objectness_logits = proposal_bbox_inst.objectness_logits[valid_map]
+            new_proposal_inst.scores = proposal_bbox_inst.scores[valid_map]
+            new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
+
         elif proposal_type == "roih":
             valid_map = proposal_bbox_inst.scores > thres
 
@@ -308,11 +310,13 @@ class UBTeacherTrainer(DefaultTrainer):
                 nun_pseudo_bbox_rpn,
             ) = self.process_pseudo_label(proposals_rpn_unsup_k, cur_threshold, "rpn", "thresholding")
             joint_proposal_dict["proposals_pseudo_rpn"] = pesudo_proposals_rpn_unsup_k
+
             # Pseudo_labeling for ROI head (bbox location/objectness)
             pesudo_proposals_roih_unsup_k, _ = self.process_pseudo_label(
                 proposals_roih_unsup_k, cur_threshold, "roih", "thresholding"
             )
-            joint_proposal_dict["proposals_pseudo_roih"] = pesudo_proposals_roih_unsup_k
+            joint_proposal_dict["proposals_pseudo_roih"] = pesudo_proposals_rpn_unsup_k
+            # before proposal from `RPN` was unused, but in center mask this is final prediction of boxes
 
             #  add pseudo-label to unlabeled data
 

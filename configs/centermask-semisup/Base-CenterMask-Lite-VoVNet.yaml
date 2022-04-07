@@ -1,5 +1,5 @@
 MODEL:
-  META_ARCHITECTURE: "GeneralizedRCNN"
+  META_ARCHITECTURE: "TwoStagePseudoLabGeneralizedRCNN"
   BACKBONE:
     NAME: "build_fcos_vovnet_fpn_backbone"
     FREEZE_AT: 0
@@ -10,15 +10,25 @@ MODEL:
     OUT_CHANNELS: 128
   PROPOSAL_GENERATOR:
     NAME: "FCOS"
+  # PROPOSAL_GENERATOR: # from UNBIASED
+  #   NAME: "PseudoLabRPN"
   FCOS:
     POST_NMS_TOPK_TEST: 50
     NUM_CLS_CONVS: 2
     NUM_BOX_CONVS: 2
-  MASK_ON: True
-  MASKIOU_ON: True
-  ROI_HEADS:
+  MASK_ON: False
+  MASKIOU_ON: False
+  ROI_HEADS: # FROM centermask
     NAME: "CenterROIHeads"
     IN_FEATURES: ["p3", "p4", "p5"]
+    # LOSS: "FocalLoss" # TODO implement FocalLoss
+
+
+  # ROI_HEADS: # from UNBIASED
+  #   NAME: "StandardROIHeadsPseudoLab"
+  #   LOSS: "FocalLoss"
+  #   IN_FEATURES: ["p3", "p4", "p5"]
+    
   ROI_MASK_HEAD:
     NAME: "SpatialAttentionMaskHead"
     ASSIGN_CRITERION: "ratio"
@@ -41,3 +51,8 @@ INPUT:
   MAX_SIZE_TRAIN: 1000
   MIN_SIZE_TEST: 600
   MAX_SIZE_TEST: 1000
+
+
+# RPN: # from UNBIASED
+#     POSITIVE_FRACTION: 0.25
+#     LOSS: "CrossEntropy"
