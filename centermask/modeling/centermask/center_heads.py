@@ -249,8 +249,8 @@ class ROIHeads(nn.Module):
 
         # Log the number of fg/bg samples that are selected for training ROI heads
         storage = get_event_storage()
-        storage.put_scalar("roi_head/num_fg_samples" + branch, np.mean(num_fg_samples))
-        storage.put_scalar("roi_head/num_bg_samples" + branch, np.mean(num_bg_samples))
+        storage.put_scalar("roi_head/num_fg_samples_" + branch, np.mean(num_fg_samples))
+        storage.put_scalar("roi_head/num_bg_samples_" + branch, np.mean(num_bg_samples))
 
         return proposals_with_gt
 
@@ -389,7 +389,7 @@ class CenterROIHeads(ROIHeads):
         See :class:`ROIHeads.forward`.
         """
         del images
-        if self.training and compute_loss:
+        if self.training or compute_loss:
             proposals = self.label_and_sample_proposals(proposals, targets, branch)
         del targets
 
@@ -427,7 +427,7 @@ class CenterROIHeads(ROIHeads):
                 the same `Instances` objects, with extra
                 fields such as `pred_masks` or `pred_keypoints`.
         """
-        # NOTe: testing bc we need 
+        # NOTE: testing bc we need 
         # assert not self.training
         # assert instances[0].has("pred_boxes") and instances[0].has("pred_classes")
 

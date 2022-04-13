@@ -16,7 +16,7 @@ MODEL:
     POST_NMS_TOPK_TEST: 50
     NUM_CLS_CONVS: 2
     NUM_BOX_CONVS: 2
-  MASK_ON: False
+  MASK_ON: True
   MASKIOU_ON: False
   ROI_HEADS: # FROM centermask
     NAME: "CenterROIHeads"

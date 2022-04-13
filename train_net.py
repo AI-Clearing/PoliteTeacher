@@ -148,11 +148,10 @@ def main(args):
         return res
 
     trainer = Trainer(cfg)
-    # TODO turn on resume
-    # trainer.resume_or_load(resume=args.resume)
+    trainer.resume_or_load(resume=args.resume)
 
-    # if cfg.TEST.AUG.ENABLED:
-    #     trainer.register_hooks([hooks.EvalHook(0, lambda: trainer.test_with_TTA(cfg, trainer.model))])
+    if cfg.TEST.AUG.ENABLED:
+        trainer.register_hooks([hooks.EvalHook(0, lambda: trainer.test_with_TTA(cfg, trainer.model))])
 
     return trainer.train()
 

@@ -27,7 +27,7 @@ class TwoStagePseudoLabGeneralizedRCNN(GeneralizedRCNN):
             losses = {}
             losses.update(detector_losses)
             losses.update(proposal_losses)
-            return losses, [], [], None
+            return losses
 
         elif branch == "unsup_data_weak":
             # Region proposal network
@@ -65,31 +65,4 @@ class TwoStagePseudoLabGeneralizedRCNN(GeneralizedRCNN):
             losses = {}
             losses.update(detector_losses)
             losses.update(proposal_losses)
-            return losses, [], [], None
-
-    # def inference(self, batched_inputs, detected_instances=None, do_postprocess=True):
-    #     assert not self.training
-
-    #     images = self.preprocess_image(batched_inputs)
-    #     features = self.backbone(images.tensor)
-
-    #     if detected_instances is None:
-    #         if self.proposal_generator:
-    #             proposals, _ = self.proposal_generator(images, features, None)
-    #         else:
-    #             assert "proposals" in batched_inputs[0]
-    #             proposals = [x["proposals"].to(self.device) for x in batched_inputs]
-
-    #         results, _ = self.roi_heads(images, features, proposals, None)
-    #     else:
-    #         detected_instances = [x.to(self.device) for x in detected_instances]
-    #         results = self.roi_heads.forward_with_given_boxes(
-    #             features, detected_instances
-    #         )
-
-    #     if do_postprocess:
-    #         return GeneralizedRCNN._postprocess(
-    #             results, batched_inputs, images.image_sizes
-    #         )
-    #     else:
-    #         return results
+            return losses

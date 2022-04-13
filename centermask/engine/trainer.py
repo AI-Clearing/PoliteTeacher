@@ -271,7 +271,7 @@ class UBTeacherTrainer(DefaultTrainer):
 
             # input both strong and weak supervised data into model
             label_data_q.extend(label_data_k)
-            record_dict, _, _, _ = self.model(label_data_q, branch="supervised")
+            record_dict = self.model(label_data_q, branch="supervised")
 
             # weight losses
             loss_dict = {}
@@ -326,9 +326,9 @@ class UBTeacherTrainer(DefaultTrainer):
             all_label_data = label_data_q + label_data_k
             all_unlabel_data = unlabel_data_q
 
-            record_all_label_data, _, _, _ = self.model(all_label_data, branch="supervised")
+            record_all_label_data = self.model(all_label_data, branch="supervised")
             record_dict.update(record_all_label_data)
-            record_all_unlabel_data, _, _, _ = self.model(all_unlabel_data, branch="supervised")
+            record_all_unlabel_data = self.model(all_unlabel_data, branch="supervised")
             new_record_all_unlabel_data = {}
             for key in record_all_unlabel_data.keys():
                 new_record_all_unlabel_data[key + "_pseudo"] = record_all_unlabel_data[key]
