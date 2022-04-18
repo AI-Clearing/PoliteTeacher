@@ -312,10 +312,11 @@ class UBTeacherTrainer(DefaultTrainer):
             joint_proposal_dict["proposals_pseudo_rpn"] = pesudo_proposals_rpn_unsup_k
 
             # Pseudo_labeling for ROI head (bbox location/objectness)
+
             pesudo_proposals_roih_unsup_k, _ = self.process_pseudo_label(
                 proposals_roih_unsup_k, cur_threshold, "roih", "thresholding"
             )
-            joint_proposal_dict["proposals_pseudo_roih"] = pesudo_proposals_rpn_unsup_k
+            joint_proposal_dict["proposals_pseudo_roih"] = pesudo_proposals_roih_unsup_k
             # before proposal from `RPN` was unused, but in center mask this is final prediction of boxes
 
             #  add pseudo-label to unlabeled data

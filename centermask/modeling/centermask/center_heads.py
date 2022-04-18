@@ -383,17 +383,17 @@ class CenterROIHeads(ROIHeads):
         proposals: List[Instances],
         targets: Optional[List[Instances]] = None,
         branch: Optional[str] = None, 
-        compute_loss: bool = False
+        compute_loss: bool = True
     ) -> Tuple[List[Instances], Dict[str, torch.Tensor]]:
         """
         See :class:`ROIHeads.forward`.
         """
         del images
-        if self.training or compute_loss:
+        if self.training and compute_loss:
             proposals = self.label_and_sample_proposals(proposals, targets, branch)
         del targets
 
-        if self.training or compute_loss:
+        if self.training and compute_loss:
             if self.maskiou_on:
                 losses, mask_features, selected_mask, labels, maskiou_targets = self._forward_mask(features, proposals)
                 losses.update(self._forward_maskiou(mask_features, proposals, selected_mask, labels, maskiou_targets))
@@ -404,11 +404,12 @@ class CenterROIHeads(ROIHeads):
         else:
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
-            pred_instances = self.forward_with_given_boxes(features, proposals)
+            pred_instances = self.forward_with_given_boxes(features, proposals, compute_loss)
             return pred_instances, {}
 
     def forward_with_given_boxes(
-        self, features: Dict[str, torch.Tensor], instances: List[Instances]
+        self, features: Dict[str, torch.Tensor], instances: List[Instances], 
+        compute_loss: bool = True
     ) -> List[Instances]:
         """
         Use the given boxes in `instances` to produce other (non-box) per-ROI outputs.
@@ -432,18 +433,18 @@ class CenterROIHeads(ROIHeads):
         # assert instances[0].has("pred_boxes") and instances[0].has("pred_classes")
 
         if self.maskiou_on:
-            instances, mask_features = self._forward_mask(features, instances)
-            instances = self._forward_maskiou(mask_features, instances)
+            instances, mask_features = self._forward_mask(features, instances, compute_loss)
+            instances = self._forward_maskiou(mask_features, instances, compute_loss)
         else:
-            instances = self._forward_mask(features, instances)
+            instances = self._forward_mask(features, instances, compute_loss)
 
-        instances = self._forward_keypoint(features, instances)
+        instances = self._forward_keypoint(features, instances, compute_loss)
 
         return instances
 
 
     def _forward_mask(
-        self, features: Dict[str, torch.Tensor], instances: List[Instances]
+        self, features: Dict[str, torch.Tensor], instances: List[Instances], compute_loss: bool = True
     ) -> Union[Dict[str, torch.Tensor], List[Instances]]:
         """
         Forward logic of the mask prediction branch.
@@ -464,7 +465,7 @@ class CenterROIHeads(ROIHeads):
 
         features = [features[f] for f in self.in_features]
 
-        if self.training:
+        if self.training and compute_loss:
             # The loss is only defined on positive proposals.
             proposals, _ = select_foreground_proposals(instances, self.num_classes)
             # proposal_boxes = [x.proposal_boxes for x in proposals]
@@ -487,7 +488,7 @@ class CenterROIHeads(ROIHeads):
                 return instances
 
 
-    def _forward_maskiou(self, mask_features, instances, selected_mask=None, labels=None, maskiou_targets=None):
+    def _forward_maskiou(self, mask_features, instances, selected_mask=None, labels=None, maskiou_targets=None,  compute_loss: bool = True):
         """
         Forward logic of the mask iou prediction branch.
         Args:
@@ -502,7 +503,7 @@ class CenterROIHeads(ROIHeads):
         if not self.maskiou_on:
             return {} if self.training else instances
 
-        if self.training:
+        if self.training and compute_loss:
             pred_maskiou = self.maskiou_head(mask_features, selected_mask)
             return {"loss_maskiou": mask_iou_loss(labels, pred_maskiou, maskiou_targets, self.maskiou_weight)}
 
@@ -516,7 +517,7 @@ class CenterROIHeads(ROIHeads):
 
 
     def _forward_keypoint(
-        self, features: Dict[str, torch.Tensor], instances: List[Instances]
+        self, features: Dict[str, torch.Tensor], instances: List[Instances], compute_loss: bool = True
     ) -> Union[Dict[str, torch.Tensor], List[Instances]]:
         """
         Forward logic of the keypoint prediction branch.
@@ -533,11 +534,11 @@ class CenterROIHeads(ROIHeads):
             In inference, update `instances` with new fields "pred_keypoints" and return it.
         """
         if not self.keypoint_on:
-            return {} if self.training else instances
+            return {} if self.training and compute_loss else instances
 
         features = [features[f] for f in self.kp_in_features]
 
-        if self.training:
+        if self.training and compute_loss:
             # The loss is defined on positive proposals with at >=1 visible keypoints.
             proposals, _ = select_foreground_proposals(instances, self.num_classes)
             proposals = select_proposals_with_visible_keypoints(proposals)
