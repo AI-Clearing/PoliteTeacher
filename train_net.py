@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 import detectron2.utils.comm as comm
 import torch
+from clearml import Task
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.data import MetadataCatalog
 from detectron2.engine import (
@@ -123,6 +124,8 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
+    task = Task.init(project_name="ubteacher", task_name=args.config_file)
+    task.connect(cfg)
     if cfg.SEMISUPNET.Trainer == "baseline":
         Trainer = BaselineTrainer
     elif cfg.SEMISUPNET.Trainer == "ubteacher":
