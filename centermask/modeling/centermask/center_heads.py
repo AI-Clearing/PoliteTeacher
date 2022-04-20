@@ -461,7 +461,7 @@ class CenterROIHeads(ROIHeads):
             In inference, update `instances` with new fields "pred_masks" and return it.
         """
         if not self.mask_on:
-            return {} if self.training else instances
+            return {} if self.training and  compute_loss else instances
 
         features = [features[f] for f in self.in_features]
 
