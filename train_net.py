@@ -124,7 +124,7 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
-    task = Task.init(project_name="ubteacher", task_name=args.config_file)
+    task = Task.init(project_name="ubteacher", task_name=args.config_file + str(args.opts))
     task.connect(cfg)
     if cfg.SEMISUPNET.Trainer == "baseline":
         Trainer = BaselineTrainer
