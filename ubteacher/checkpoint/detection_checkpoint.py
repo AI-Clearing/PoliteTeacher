@@ -1,10 +1,10 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-from detectron2.checkpoint.c2_model_loading import align_and_update_state_dicts
-from detectron2.checkpoint import DetectionCheckpointer
-
 # for load_student_model
-from typing import Any
-from fvcore.common.checkpoint import _strip_prefix_if_present, _IncompatibleKeys
+from typing import Any, Dict
+
+from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.checkpoint.c2_model_loading import align_and_update_state_dicts
+from fvcore.common.checkpoint import _IncompatibleKeys, _strip_prefix_if_present
 
 
 class DetectionTSCheckpointer(DetectionCheckpointer):
@@ -79,11 +79,25 @@ class DetectionTSCheckpointer(DetectionCheckpointer):
                     incorrect_shapes.append((k, shape_checkpoint, shape_model))
                     checkpoint_state_dict.pop(k)
         # pyre-ignore
-        incompatible = self.model.modelStudent.load_state_dict(
-            checkpoint_state_dict, strict=False
-        )
+        incompatible = self.model.modelStudent.load_state_dict(checkpoint_state_dict, strict=False)
         return _IncompatibleKeys(
             missing_keys=incompatible.missing_keys,
             unexpected_keys=incompatible.unexpected_keys,
             incorrect_shapes=incorrect_shapes,
         )
+
+    def _load_file(self, f: str) -> Dict[str, Any]:
+        checkpoint = super()._load_file(f)
+        checkpoint = checkpoint.pop("model")
+
+        prepend_str = "modelStudent"
+        print(checkpoint.keys())
+        new_key_with_modelStudent = lambda k: k if k.startswith(prepend_str) else f"{prepend_str}.{k}"
+        modify_checkpoint = {
+            new_key_with_modelStudent(k): v for k, v in checkpoint.items() if not k.startswith(prepend_str)
+        }
+
+        print(modify_checkpoint.keys())
+        checkpoint = {"model": modify_checkpoint}
+
+        return checkpoint
