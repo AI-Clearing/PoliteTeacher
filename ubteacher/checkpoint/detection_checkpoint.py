@@ -1,10 +1,12 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-from detectron2.checkpoint.c2_model_loading import align_and_update_state_dicts
+# for load_student_model
+from typing import Any, Dict
+
 from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.checkpoint.c2_model_loading import align_and_update_state_dicts
 
 # for load_student_model
-from typing import Any
-from fvcore.common.checkpoint import _strip_prefix_if_present, _IncompatibleKeys
+from fvcore.common.checkpoint import _IncompatibleKeys, _strip_prefix_if_present
 
 
 class DetectionTSCheckpointer(DetectionCheckpointer):
@@ -87,3 +89,22 @@ class DetectionTSCheckpointer(DetectionCheckpointer):
             unexpected_keys=incompatible.unexpected_keys,
             incorrect_shapes=incorrect_shapes,
         )
+
+    def _load_file(self, f: str) -> Dict[str, Any]:
+        checkpoint = super()._load_file(f)
+        checkpoint = checkpoint.pop("model")
+
+        overwrite_model_name = "modelStudent"
+        possible_model_name = [overwrite_model_name, "modelTeacher"]
+
+        def get_new_weigths_key(key):
+            if not any([key.startswith(name) for name in possible_model_name]):
+                return f"{overwrite_model_name}.{key}"
+            else:
+                return key
+
+        modify_checkpoint = {
+            get_new_weigths_key(k): v for k, v in checkpoint.items() 
+        }
+        checkpoint = {"model": modify_checkpoint}
+        return checkpoint
