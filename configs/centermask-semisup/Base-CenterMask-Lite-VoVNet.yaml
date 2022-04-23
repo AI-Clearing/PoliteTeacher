@@ -1,5 +1,5 @@
 MODEL:
-  META_ARCHITECTURE: "GeneralizedRCNN"
+  META_ARCHITECTURE: "TwoStagePseudoLabGeneralizedRCNN"
   BACKBONE:
     NAME: "build_fcos_vovnet_fpn_backbone"
     FREEZE_AT: 0
