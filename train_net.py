@@ -34,7 +34,10 @@ from centermask.evaluation import (
     CityscapesSemSegEvaluator,
     COCOEvaluator,
 )
-from ubteacher.modeling.meta_arch.ts_ensemble import EnsembleTSModel
+
+# hacky way to register
+from centermask.modeling.meta_arch.rcnn import TwoStagePseudoLabGeneralizedRCNN
+from centermask.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 
 
 class Trainer(DefaultTrainer):
@@ -119,8 +122,10 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
-    task = Task.init(project_name="ubteacher", task_name=args.config_file.split('/')[-1] + str(args.opts))
-    task.connect(cfg)
+    if cfg.CLEARML.ON:
+        task = Task.init(project_name="ubteacher", task_name=args.config_file.split("/")[-1] + str(args.opts))
+        task.connect(cfg)
+        
     if cfg.SEMISUPNET.Trainer == "baseline":
         Trainer = BaselineTrainer
     elif cfg.SEMISUPNET.Trainer == "ubteacher":

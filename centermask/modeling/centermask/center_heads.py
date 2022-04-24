@@ -1,27 +1,22 @@
 # Copyright (c) Youngwan Lee (ETRI) All Rights Reserved.
-import torch
-from torch import nn
 from typing import Dict, List, Optional, Tuple, Union
-import numpy as np
 
-from detectron2.modeling.roi_heads import (
-    ROI_HEADS_REGISTRY,
-)
-from detectron2.structures import Boxes, Instances, pairwise_iou, ImageList
-from detectron2.utils.events import get_event_storage
-from detectron2.modeling.matcher import Matcher
-from detectron2.modeling.sampling import subsample_labels
+import numpy as np
+import torch
 from detectron2.layers import ShapeSpec
+from detectron2.modeling.matcher import Matcher
+from detectron2.modeling.roi_heads import ROI_HEADS_REGISTRY
+from detectron2.modeling.sampling import subsample_labels
+from detectron2.structures import Boxes, ImageList, Instances, pairwise_iou
+from detectron2.utils.events import get_event_storage
+from torch import nn
+
 # from detectron2.modeling.roi_heads.keypoint_head import build_keypoint_head
 from .keypoint_head import build_keypoint_head
-
-
-from .mask_head import build_mask_head, mask_rcnn_loss, mask_rcnn_inference
-from .maskiou_head import build_maskiou_head, mask_iou_loss, mask_iou_inference
-from .proposal_utils import add_ground_truth_to_proposals
+from .mask_head import build_mask_head, mask_rcnn_inference, mask_rcnn_loss
+from .maskiou_head import build_maskiou_head, mask_iou_inference, mask_iou_loss
 from .pooler import ROIPooler
-
-
+from .proposal_utils import add_ground_truth_to_proposals
 
 __all__ = ["CenterROIHeads"]
 
@@ -171,7 +166,7 @@ class ROIHeads(nn.Module):
         return sampled_idxs, gt_classes[sampled_idxs]
 
     @torch.no_grad()
-    def label_and_sample_proposals(self, proposals, targets):
+    def label_and_sample_proposals(self, proposals, targets, branch):
         """
         Prepare some proposals to be used to train the ROI heads.
         It performs box matching between `proposals` and `targets`, and assigns
@@ -254,8 +249,8 @@ class ROIHeads(nn.Module):
 
         # Log the number of fg/bg samples that are selected for training ROI heads
         storage = get_event_storage()
-        storage.put_scalar("roi_head/num_fg_samples", np.mean(num_fg_samples))
-        storage.put_scalar("roi_head/num_bg_samples", np.mean(num_bg_samples))
+        storage.put_scalar("roi_head/num_fg_samples_" + branch, np.mean(num_fg_samples))
+        storage.put_scalar("roi_head/num_bg_samples_" + branch, np.mean(num_bg_samples))
 
         return proposals_with_gt
 
@@ -387,16 +382,18 @@ class CenterROIHeads(ROIHeads):
         features: Dict[str, torch.Tensor],
         proposals: List[Instances],
         targets: Optional[List[Instances]] = None,
+        branch: Optional[str] = None, 
+        compute_loss: bool = True
     ) -> Tuple[List[Instances], Dict[str, torch.Tensor]]:
         """
         See :class:`ROIHeads.forward`.
         """
         del images
-        if self.training:
-            proposals = self.label_and_sample_proposals(proposals, targets)
+        if self.training and compute_loss:
+            proposals = self.label_and_sample_proposals(proposals, targets, branch)
         del targets
 
-        if self.training:
+        if self.training and compute_loss:
             if self.maskiou_on:
                 losses, mask_features, selected_mask, labels, maskiou_targets = self._forward_mask(features, proposals)
                 losses.update(self._forward_maskiou(mask_features, proposals, selected_mask, labels, maskiou_targets))
@@ -407,11 +404,12 @@ class CenterROIHeads(ROIHeads):
         else:
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
-            pred_instances = self.forward_with_given_boxes(features, proposals)
+            pred_instances = self.forward_with_given_boxes(features, proposals, compute_loss)
             return pred_instances, {}
 
     def forward_with_given_boxes(
-        self, features: Dict[str, torch.Tensor], instances: List[Instances]
+        self, features: Dict[str, torch.Tensor], instances: List[Instances], 
+        compute_loss: bool = True
     ) -> List[Instances]:
         """
         Use the given boxes in `instances` to produce other (non-box) per-ROI outputs.
@@ -430,22 +428,23 @@ class CenterROIHeads(ROIHeads):
                 the same `Instances` objects, with extra
                 fields such as `pred_masks` or `pred_keypoints`.
         """
-        assert not self.training
+        # NOTE: testing bc we need 
+        # assert not self.training
         assert instances[0].has("pred_boxes") and instances[0].has("pred_classes")
 
         if self.maskiou_on:
-            instances, mask_features = self._forward_mask(features, instances)
-            instances = self._forward_maskiou(mask_features, instances)
+            instances, mask_features = self._forward_mask(features, instances, compute_loss=compute_loss)
+            instances = self._forward_maskiou(mask_features, instances, compute_loss=compute_loss)
         else:
-            instances = self._forward_mask(features, instances)
+            instances = self._forward_mask(features, instances, compute_loss=compute_loss)
 
-        instances = self._forward_keypoint(features, instances)
+        instances = self._forward_keypoint(features, instances, compute_loss=compute_loss)
 
         return instances
 
 
     def _forward_mask(
-        self, features: Dict[str, torch.Tensor], instances: List[Instances]
+        self, features: Dict[str, torch.Tensor], instances: List[Instances], compute_loss: bool = True
     ) -> Union[Dict[str, torch.Tensor], List[Instances]]:
         """
         Forward logic of the mask prediction branch.
@@ -462,11 +461,11 @@ class CenterROIHeads(ROIHeads):
             In inference, update `instances` with new fields "pred_masks" and return it.
         """
         if not self.mask_on:
-            return {} if self.training else instances
+            return {} if self.training and  compute_loss else instances
 
         features = [features[f] for f in self.in_features]
 
-        if self.training:
+        if self.training and compute_loss:
             # The loss is only defined on positive proposals.
             proposals, _ = select_foreground_proposals(instances, self.num_classes)
             # proposal_boxes = [x.proposal_boxes for x in proposals]
@@ -489,7 +488,7 @@ class CenterROIHeads(ROIHeads):
                 return instances
 
 
-    def _forward_maskiou(self, mask_features, instances, selected_mask=None, labels=None, maskiou_targets=None):
+    def _forward_maskiou(self, mask_features, instances, selected_mask=None, labels=None, maskiou_targets=None,  compute_loss: bool = True):
         """
         Forward logic of the mask iou prediction branch.
         Args:
@@ -502,9 +501,9 @@ class CenterROIHeads(ROIHeads):
             In inference, calibrate instances' scores.
         """
         if not self.maskiou_on:
-            return {} if self.training else instances
+            return {} if self.training and compute_loss else instances
 
-        if self.training:
+        if self.training and compute_loss:
             pred_maskiou = self.maskiou_head(mask_features, selected_mask)
             return {"loss_maskiou": mask_iou_loss(labels, pred_maskiou, maskiou_targets, self.maskiou_weight)}
 
@@ -518,7 +517,7 @@ class CenterROIHeads(ROIHeads):
 
 
     def _forward_keypoint(
-        self, features: Dict[str, torch.Tensor], instances: List[Instances]
+        self, features: Dict[str, torch.Tensor], instances: List[Instances], compute_loss: bool = True
     ) -> Union[Dict[str, torch.Tensor], List[Instances]]:
         """
         Forward logic of the keypoint prediction branch.
@@ -535,11 +534,11 @@ class CenterROIHeads(ROIHeads):
             In inference, update `instances` with new fields "pred_keypoints" and return it.
         """
         if not self.keypoint_on:
-            return {} if self.training else instances
+            return {} if self.training and compute_loss else instances
 
         features = [features[f] for f in self.kp_in_features]
 
-        if self.training:
+        if self.training and compute_loss:
             # The loss is defined on positive proposals with at >=1 visible keypoints.
             proposals, _ = select_foreground_proposals(instances, self.num_classes)
             proposals = select_proposals_with_visible_keypoints(proposals)

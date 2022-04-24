@@ -127,3 +127,11 @@ _C.SOLVER.CHECKPOINT_PERIOD = 100000
 _C.DATASETS.TRAIN_LABEL = ("coco_2017_train",)
 _C.DATASETS.TRAIN_UNLABEL = ("coco_2017_train",)
 _C.DATASETS.CROSS_DATASET = False
+
+
+# ---------------------------------------------------------------------------- #
+# CLEARML
+# ---------------------------------------------------------------------------- #
+
+_C.CLEARML = CN()
+_C.CLEARML.ON = True

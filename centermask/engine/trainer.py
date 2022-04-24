@@ -186,47 +186,32 @@ class UBTeacherTrainer(DefaultTrainer):
     # =====================================================
     # ================== Pseduo-labeling ==================
     # =====================================================
-    def threshold_bbox(self, proposal_bbox_inst, thres=0.7, proposal_type="roih"):
-        if proposal_type == "rpn":
-            valid_map = proposal_bbox_inst.objectness_logits > thres
+    def threshold_bbox(self, proposal_bbox_inst, thres=0.7):
+        valid_map = proposal_bbox_inst.scores > thres
 
-            # create instances containing boxes and gt_classes
-            image_shape = proposal_bbox_inst.image_size
-            new_proposal_inst = Instances(image_shape)
+        # create instances containing boxes and gt_classes
+        image_shape = proposal_bbox_inst.image_size
+        new_proposal_inst = Instances(image_shape)
 
-            # create box
-            new_bbox_loc = proposal_bbox_inst.proposal_boxes.tensor[valid_map, :]
-            new_boxes = Boxes(new_bbox_loc)
+        # create box
+        new_bbox_loc = proposal_bbox_inst.pred_boxes.tensor[valid_map, :]
+        new_boxes = Boxes(new_bbox_loc)
 
-            # add boxes to instances
-            new_proposal_inst.gt_boxes = new_boxes
-            new_proposal_inst.objectness_logits = proposal_bbox_inst.objectness_logits[valid_map]
-        elif proposal_type == "roih":
-            valid_map = proposal_bbox_inst.scores > thres
-
-            # create instances containing boxes and gt_classes
-            image_shape = proposal_bbox_inst.image_size
-            new_proposal_inst = Instances(image_shape)
-
-            # create box
-            new_bbox_loc = proposal_bbox_inst.pred_boxes.tensor[valid_map, :]
-            new_boxes = Boxes(new_bbox_loc)
-
-            # add boxes to instances
-            new_proposal_inst.gt_boxes = new_boxes
-            new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
-            new_proposal_inst.scores = proposal_bbox_inst.scores[valid_map]
-
+        # add boxes to instances
+        new_proposal_inst.gt_boxes = new_boxes
+        new_proposal_inst.scores = proposal_bbox_inst.scores[valid_map]
+        new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
+        # TODO doddać gt maski
         return new_proposal_inst
 
-    def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, proposal_type, psedo_label_method=""):
+    def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, psedo_label_method=""):
         list_instances = []
         num_proposal_output = 0.0
         for proposal_bbox_inst in proposals_rpn_unsup_k:
             # thresholding
             if psedo_label_method == "thresholding":
                 proposal_bbox_inst = self.threshold_bbox(
-                    proposal_bbox_inst, thres=cur_threshold, proposal_type=proposal_type
+                    proposal_bbox_inst, thres=cur_threshold
                 )
             else:
                 raise ValueError("Unkown pseudo label boxes methods")
@@ -269,7 +254,7 @@ class UBTeacherTrainer(DefaultTrainer):
 
             # input both strong and weak supervised data into model
             label_data_q.extend(label_data_k)
-            record_dict, _, _, _ = self.model(label_data_q, branch="supervised")
+            record_dict = self.model(label_data_q, branch="supervised")
 
             # weight losses
             loss_dict = {}
@@ -306,11 +291,11 @@ class UBTeacherTrainer(DefaultTrainer):
             (
                 pesudo_proposals_rpn_unsup_k,
                 nun_pseudo_bbox_rpn,
-            ) = self.process_pseudo_label(proposals_rpn_unsup_k, cur_threshold, "rpn", "thresholding")
+            ) = self.process_pseudo_label(proposals_rpn_unsup_k, cur_threshold, "thresholding")
             joint_proposal_dict["proposals_pseudo_rpn"] = pesudo_proposals_rpn_unsup_k
             # Pseudo_labeling for ROI head (bbox location/objectness)
             pesudo_proposals_roih_unsup_k, _ = self.process_pseudo_label(
-                proposals_roih_unsup_k, cur_threshold, "roih", "thresholding"
+                proposals_roih_unsup_k, cur_threshold, "thresholding"
             )
             joint_proposal_dict["proposals_pseudo_roih"] = pesudo_proposals_roih_unsup_k
 
@@ -322,19 +307,22 @@ class UBTeacherTrainer(DefaultTrainer):
             all_label_data = label_data_q + label_data_k
             all_unlabel_data = unlabel_data_q
 
-            record_all_label_data, _, _, _ = self.model(all_label_data, branch="supervised")
+            record_all_label_data = self.model(all_label_data, branch="supervised")
             record_dict.update(record_all_label_data)
-            record_all_unlabel_data, _, _, _ = self.model(all_unlabel_data, branch="supervised")
+            record_all_unlabel_data = self.model(all_unlabel_data, branch="supervised")
             new_record_all_unlabel_data = {}
             for key in record_all_unlabel_data.keys():
                 new_record_all_unlabel_data[key + "_pseudo"] = record_all_unlabel_data[key]
             record_dict.update(new_record_all_unlabel_data)
 
-            # weight losses
             loss_dict = {}
+           # POSSIBLE KEYS:
+           # ['loss_mask', 'loss_maskiou', 'loss_fcos_cls', 'loss_fcos_loc', 'loss_fcos_ctr', 
+           # 'loss_mask_pseudo', 'loss_maskiou_pseudo', 'loss_fcos_cls_pseudo', 'loss_fcos_loc_pseudo', 'loss_fcos_ctr_pseudo'])
+            ignored_loss_keys = ['loss_mask_pseudo', 'loss_maskiou_pseudo', 'loss_fcos_loc_pseudo', 'loss_fcos_ctr_pseudo']
             for key in record_dict.keys():
                 if key[:4] == "loss":
-                    if key == "loss_rpn_loc_pseudo" or key == "loss_box_reg_pseudo":
+                    if key in ignored_loss_keys:
                         # pseudo bbox regression <- 0
                         loss_dict[key] = record_dict[key] * 0
                     elif key[-6:] == "pseudo":  # unsupervised loss
