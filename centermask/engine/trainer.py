@@ -201,7 +201,8 @@ class UBTeacherTrainer(DefaultTrainer):
         new_proposal_inst.gt_boxes = new_boxes
         new_proposal_inst.scores = proposal_bbox_inst.scores[valid_map]
         new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
-        # TODO doddać gt maski
+        ## TODO change to true masks
+        new_proposal_inst.gt_masks =  torch.zeros_like(proposal_bbox_inst.pred_masks[valid_map, :], dtype=torch.long)
         return new_proposal_inst
 
     def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, psedo_label_method=""):
@@ -287,12 +288,7 @@ class UBTeacherTrainer(DefaultTrainer):
             cur_threshold = self.cfg.SEMISUPNET.BBOX_THRESHOLD
 
             joint_proposal_dict = {}
-            joint_proposal_dict["proposals_rpn"] = proposals_rpn_unsup_k
-            (
-                pesudo_proposals_rpn_unsup_k,
-                nun_pseudo_bbox_rpn,
-            ) = self.process_pseudo_label(proposals_rpn_unsup_k, cur_threshold, "thresholding")
-            joint_proposal_dict["proposals_pseudo_rpn"] = pesudo_proposals_rpn_unsup_k
+
             # Pseudo_labeling for ROI head (bbox location/objectness)
             pesudo_proposals_roih_unsup_k, _ = self.process_pseudo_label(
                 proposals_roih_unsup_k, cur_threshold, "thresholding"
