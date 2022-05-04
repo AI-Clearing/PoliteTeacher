@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from collections import OrderedDict
+from typing import Any, List
 
 import detectron2.utils.comm as comm
 import numpy as np
@@ -21,6 +22,7 @@ from detectron2.evaluation import (
     verify_results,
 )
 from detectron2.structures.boxes import Boxes
+from detectron2.structures.masks import PolygonMasks
 from detectron2.structures.instances import Instances
 from detectron2.utils.env import TORCH_VERSION
 from detectron2.utils.events import EventStorage
@@ -186,7 +188,11 @@ class UBTeacherTrainer(DefaultTrainer):
     # =====================================================
     # ================== Pseduo-labeling ==================
     # =====================================================
-    def threshold_bbox(self, proposal_bbox_inst, thres=0.7):
+    def threshold_bbox(self, proposal_bbox_inst, thres=None):
+        
+        if thres is None:
+            thres = self.cfg.DEBUG_OPT.BOX_THRESHOLD
+
         valid_map = proposal_bbox_inst.scores > thres
 
         # create instances containing boxes and gt_classes
@@ -202,11 +208,13 @@ class UBTeacherTrainer(DefaultTrainer):
         new_proposal_inst.scores = proposal_bbox_inst.scores[valid_map]
         new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
         ## TODO change to true masks
-        new_proposal_inst.gt_masks =  torch.zeros_like(proposal_bbox_inst.pred_masks[valid_map, :], dtype=torch.long)
+        new_proposal_inst.gt_masks =  PolygonMasks([[np.array([0,0,0,0,0,0])]] * sum(valid_map))
+
         return new_proposal_inst
 
     def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, psedo_label_method=""):
         list_instances = []
+        if_empty_instances = []
         num_proposal_output = 0.0
         for proposal_bbox_inst in proposals_rpn_unsup_k:
             # thresholding
@@ -218,8 +226,14 @@ class UBTeacherTrainer(DefaultTrainer):
                 raise ValueError("Unkown pseudo label boxes methods")
             num_proposal_output += len(proposal_bbox_inst)
             list_instances.append(proposal_bbox_inst)
+
+            if len(proposal_bbox_inst.gt_classes):
+                if_empty_instances.append(False)
+            else:
+                if_empty_instances.append(True)
+
         num_proposal_output = num_proposal_output / len(proposals_rpn_unsup_k)
-        return list_instances, num_proposal_output
+        return list_instances, num_proposal_output, if_empty_instances
 
     def remove_label(self, label_data):
         for label_datum in label_data:
@@ -235,6 +249,11 @@ class UBTeacherTrainer(DefaultTrainer):
     # =====================================================
     # =================== Training Flow ===================
     # =====================================================
+
+    @staticmethod
+
+    def filter_empty(to_filter: List[Any],  if_empty_instances: List[bool]):
+        return [elem for elem, if_empty in zip(to_filter, if_empty_instances) if not if_empty]
 
     def run_step_full_semisup(self):
         self._trainer.iter = self.iter
@@ -290,13 +309,18 @@ class UBTeacherTrainer(DefaultTrainer):
             joint_proposal_dict = {}
 
             # Pseudo_labeling for ROI head (bbox location/objectness)
-            pesudo_proposals_roih_unsup_k, _ = self.process_pseudo_label(
+            pesudo_proposals_roih_unsup_k, num_proposal_output, if_empty_instances = self.process_pseudo_label(
                 proposals_roih_unsup_k, cur_threshold, "thresholding"
             )
+
+            if self.cfg.DEBUG_OPT.FILTER_PSEUDO_INST:
+                pesudo_proposals_roih_unsup_k = self.filter_empty(pesudo_proposals_roih_unsup_k, if_empty_instances)
+                unlabel_data_q = self.filter_empty(unlabel_data_q, if_empty_instances)
+                unlabel_data_k = self.filter_empty(unlabel_data_k, if_empty_instances)
+
             joint_proposal_dict["proposals_pseudo_roih"] = pesudo_proposals_roih_unsup_k
 
             #  add pseudo-label to unlabeled data
-
             unlabel_data_q = self.add_label(unlabel_data_q, joint_proposal_dict["proposals_pseudo_roih"])
             unlabel_data_k = self.add_label(unlabel_data_k, joint_proposal_dict["proposals_pseudo_roih"])
 
@@ -305,11 +329,13 @@ class UBTeacherTrainer(DefaultTrainer):
 
             record_all_label_data = self.model(all_label_data, branch="supervised")
             record_dict.update(record_all_label_data)
-            record_all_unlabel_data = self.model(all_unlabel_data, branch="supervised")
-            new_record_all_unlabel_data = {}
-            for key in record_all_unlabel_data.keys():
-                new_record_all_unlabel_data[key + "_pseudo"] = record_all_unlabel_data[key]
-            record_dict.update(new_record_all_unlabel_data)
+            
+            if all_unlabel_data: # could be empty bc filtering empty instances
+                record_all_unlabel_data = self.model(all_unlabel_data, branch="supervised")
+                new_record_all_unlabel_data = {}
+                for key in record_all_unlabel_data.keys():
+                    new_record_all_unlabel_data[key + "_pseudo"] = record_all_unlabel_data[key]
+                record_dict.update(new_record_all_unlabel_data)
 
             loss_dict = {}
            # POSSIBLE KEYS:
@@ -334,6 +360,10 @@ class UBTeacherTrainer(DefaultTrainer):
 
         self.optimizer.zero_grad()
         losses.backward()
+
+        if self.cfg.DEBUG_OPT.GRAD_CLIPPING:
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10)
+        
         self.optimizer.step()
 
     def _write_metrics(self, metrics_dict: dict):

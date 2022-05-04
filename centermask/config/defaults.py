@@ -135,3 +135,13 @@ _C.DATASETS.CROSS_DATASET = False
 
 _C.CLEARML = CN()
 _C.CLEARML.ON = True
+
+
+# ---------------------------------------------------------------------------- #
+# DEBUGGING IDEAS
+# ---------------------------------------------------------------------------- #
+
+_C.DEBUG_OPT  = CN()
+_C.DEBUG_OPT.BOX_THRESHOLD = 0.7
+_C.DEBUG_OPT.FILTER_PSEUDO_INST = False
+_C.DEBUG_OPT.GRAD_CLIPPING = False

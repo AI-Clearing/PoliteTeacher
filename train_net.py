@@ -4,6 +4,7 @@
 import logging
 import os
 from collections import OrderedDict
+from random import randint
 
 import detectron2.utils.comm as comm
 import torch
@@ -122,10 +123,18 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
+    
     if cfg.CLEARML.ON:
-        task = Task.init(project_name="ubteacher", task_name=args.config_file.split("/")[-1] + str(args.opts))
+        task = Task.init(project_name="ubteacher", task_name=args.config_file.split("/")[-1] + str(args.opts), reuse_last_task_id=False)
+        task_id = task.id
         task.connect(cfg)
-        
+    else:
+        task_id = randint(0,100000000)
+    
+    cfg.defrost()
+    cfg.OUTPUT_DIR = f"{cfg.OUTPUT_DIR}_{task_id}"
+    cfg.freeze()
+    
     if cfg.SEMISUPNET.Trainer == "baseline":
         Trainer = BaselineTrainer
     elif cfg.SEMISUPNET.Trainer == "ubteacher":
