@@ -189,10 +189,6 @@ class UBTeacherTrainer(DefaultTrainer):
     # ================== Pseduo-labeling ==================
     # =====================================================
     def threshold_bbox(self, proposal_bbox_inst, thres=None):
-        
-        if thres is None:
-            thres = self.cfg.DEBUG_OPT.BOX_THRESHOLD
-
         valid_map = proposal_bbox_inst.scores > thres
 
         # create instances containing boxes and gt_classes
@@ -251,9 +247,13 @@ class UBTeacherTrainer(DefaultTrainer):
     # =====================================================
 
     @staticmethod
-
     def filter_empty(to_filter: List[Any],  if_empty_instances: List[bool]):
         return [elem for elem, if_empty in zip(to_filter, if_empty_instances) if not if_empty]
+
+    def log_gradients_in_model(self, model):
+        for tag, value in model.named_parameters():
+            if value.grad is not None:
+                self.storage.put_scalar(f"grad/{tag}", value.grad.cpu().sum())
 
     def run_step_full_semisup(self):
         self._trainer.iter = self.iter
@@ -361,6 +361,9 @@ class UBTeacherTrainer(DefaultTrainer):
         self.optimizer.zero_grad()
         losses.backward()
 
+        if self.cfg.DEBUG_OPT.LOG_GRADIENT:
+            self.log_gradients_in_model(self.model)
+        
         if self.cfg.DEBUG_OPT.GRAD_CLIPPING:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10)
         
