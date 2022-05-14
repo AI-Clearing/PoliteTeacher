@@ -16,13 +16,15 @@ from detectron2.engine import DefaultTrainer, SimpleTrainer, TrainerBase, hooks
 from detectron2.engine.defaults import create_ddp_model
 from detectron2.engine.train_loop import AMPTrainer
 from detectron2.evaluation import (
-    COCOEvaluator,
     DatasetEvaluators,
     PascalVOCDetectionEvaluator,
     verify_results,
 )
+
+from detectron2.layers.mask_ops import paste_masks_in_image
+from centermask.evaluation import COCOEvaluator
 from detectron2.structures.boxes import Boxes
-from detectron2.structures.masks import PolygonMasks
+from detectron2.structures.masks import BitMasks, PolygonMasks
 from detectron2.structures.instances import Instances
 from detectron2.utils.env import TORCH_VERSION
 from detectron2.utils.events import EventStorage
@@ -39,7 +41,8 @@ from ubteacher.data.build import (
 from ubteacher.data.dataset_mapper import DatasetMapperTwoCropSeparate
 from ubteacher.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 from ubteacher.solver.build import build_lr_scheduler
-
+from imantics import Polygons, Mask
+from skimage import measure
 
 # Supervised-only Trainer
 class BaselineTrainer(DefaultTrainer):
@@ -188,7 +191,7 @@ class UBTeacherTrainer(DefaultTrainer):
     # =====================================================
     # ================== Pseduo-labeling ==================
     # =====================================================
-    def threshold_bbox(self, proposal_bbox_inst, thres=None):
+    def threshold_bbox(self, proposal_bbox_inst, thres=None, mask_thres=0.5):
         valid_map = proposal_bbox_inst.scores > thres
 
         # create instances containing boxes and gt_classes
@@ -203,12 +206,28 @@ class UBTeacherTrainer(DefaultTrainer):
         new_proposal_inst.gt_boxes = new_boxes
         new_proposal_inst.scores = proposal_bbox_inst.scores[valid_map]
         new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
-        ## TODO change to true masks
-        new_proposal_inst.gt_masks =  PolygonMasks([[np.array([0,0,0,0,0,0])]] * sum(valid_map))
+
+        pseudo_masks = paste_masks_in_image(proposal_bbox_inst.pred_masks[valid_map][:, 0, :, :], new_proposal_inst.gt_boxes, image_shape, mask_thres)
+
+        all_countours = []
+
+        def countur_to_list_and_optional_extend(countur):
+            flatten_countur = countur.ravel().tolist()
+
+            if len(flatten_countur) < 6:
+                flatten_countur = flatten_countur + flatten_countur[:2] # TODO could be better
+            
+            return flatten_countur
+
+        for mask in pseudo_masks:
+            contours = measure.find_contours(mask.cpu().numpy(), 0.5)
+            all_countours.append([countur_to_list_and_optional_extend(countur) for countur in contours])
+
+        new_proposal_inst.gt_masks = PolygonMasks(all_countours)
 
         return new_proposal_inst
 
-    def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, psedo_label_method=""):
+    def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, mask_cur_threshold, psedo_label_method=""):
         list_instances = []
         if_empty_instances = []
         num_proposal_output = 0.0
@@ -216,7 +235,7 @@ class UBTeacherTrainer(DefaultTrainer):
             # thresholding
             if psedo_label_method == "thresholding":
                 proposal_bbox_inst = self.threshold_bbox(
-                    proposal_bbox_inst, thres=cur_threshold
+                    proposal_bbox_inst, thres=cur_threshold, mask_thres= mask_cur_threshold
                 )
             else:
                 raise ValueError("Unkown pseudo label boxes methods")
@@ -305,12 +324,13 @@ class UBTeacherTrainer(DefaultTrainer):
 
             #  Pseudo-labeling
             cur_threshold = self.cfg.SEMISUPNET.BBOX_THRESHOLD
+            mask_cur_threshold = self.cfg.SEMISUPNET.MASK_THRESHOLD
 
             joint_proposal_dict = {}
 
             # Pseudo_labeling for ROI head (bbox location/objectness)
             pesudo_proposals_roih_unsup_k, num_proposal_output, if_empty_instances = self.process_pseudo_label(
-                proposals_roih_unsup_k, cur_threshold, "thresholding"
+                proposals_roih_unsup_k, cur_threshold, mask_cur_threshold, "thresholding"
             )
 
             if self.cfg.DEBUG_OPT.FILTER_PSEUDO_INST:
@@ -341,7 +361,11 @@ class UBTeacherTrainer(DefaultTrainer):
            # POSSIBLE KEYS:
            # ['loss_mask', 'loss_maskiou', 'loss_fcos_cls', 'loss_fcos_loc', 'loss_fcos_ctr', 
            # 'loss_mask_pseudo', 'loss_maskiou_pseudo', 'loss_fcos_cls_pseudo', 'loss_fcos_loc_pseudo', 'loss_fcos_ctr_pseudo'])
-            ignored_loss_keys = ['loss_mask_pseudo', 'loss_maskiou_pseudo', 'loss_fcos_loc_pseudo', 'loss_fcos_ctr_pseudo']
+            ignored_loss_keys = ['loss_maskiou_pseudo', 'loss_fcos_loc_pseudo', 'loss_fcos_ctr_pseudo']
+
+            if not self.cfg.SEMISUPNET.MASK_LOSS:
+                ignored_loss_keys.append('loss_mask_pseudo')
+
             for key in record_dict.keys():
                 if key[:4] == "loss":
                     if key in ignored_loss_keys:
