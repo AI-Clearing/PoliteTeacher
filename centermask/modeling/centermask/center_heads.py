@@ -382,7 +382,7 @@ class CenterROIHeads(ROIHeads):
         features: Dict[str, torch.Tensor],
         proposals: List[Instances],
         targets: Optional[List[Instances]] = None,
-        branch: Optional[str] = None, 
+        branch: Optional[str] = "supervised", 
         compute_loss: bool = True
     ) -> Tuple[List[Instances], Dict[str, torch.Tensor]]:
         """

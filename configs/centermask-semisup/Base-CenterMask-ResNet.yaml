@@ -1,5 +1,5 @@
 MODEL:
-  META_ARCHITECTURE: "GeneralizedRCNN"
+  META_ARCHITECTURE: "TwoStagePseudoLabGeneralizedRCNN"
   BACKBONE:
     NAME: "build_fcos_resnet_fpn_backbone"
   RESNETS:
