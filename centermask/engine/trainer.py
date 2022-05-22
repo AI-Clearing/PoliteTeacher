@@ -104,6 +104,7 @@ class UBTeacherTrainer(DefaultTrainer):
         )
         self.start_iter = 0
         self.max_iter = cfg.SOLVER.MAX_ITER
+        self.ema_lossess = dict()
         self.cfg = cfg
 
         self.register_hooks(self.build_hooks())
@@ -372,11 +373,30 @@ class UBTeacherTrainer(DefaultTrainer):
                         # pseudo bbox regression <- 0
                         loss_dict[key] = record_dict[key] * 0
                     elif key[-6:] == "pseudo":  # unsupervised loss
-                        loss_dict[key] = record_dict[key] * self.cfg.SEMISUPNET.UNSUP_LOSS_WEIGHT
+                        human_loss_key = key[:-7]
+
+                        if self.cfg.SEMISUPNET.NORM_LOSS:
+                            weight_decay = self.cfg.SEMISUPNET.NORM_LOSS_KEEP_RATE
+                            with torch.no_grad():
+                                for k in [human_loss_key, key]:
+                                # initialize loss during first iteration
+                                    self.ema_lossess[k] = self.ema_lossess.get(k, record_dict[k])
+                                    self.ema_lossess[k] = weight_decay * self.ema_lossess[k] +  (1 - weight_decay) * record_dict[k]
+       
+                            loss_dict[key] =  self.cfg.SEMISUPNET.UNSUP_LOSS_WEIGHT * (self.ema_lossess[human_loss_key] / self.ema_lossess[key])  * record_dict[key]
+
+                        else:
+                            loss_dict[key] = record_dict[key] * self.cfg.SEMISUPNET.UNSUP_LOSS_WEIGHT
+
                     else:  # supervised loss
                         loss_dict[key] = record_dict[key] * 1
 
+            
+
             losses = sum(loss_dict.values())
+
+            if self.cfg.SEMISUPNET.NORM_LOSS: # should rescale only loss with pseudo part, it cause pick of loss at begining of techer-student phase.
+                losses = 1 / (1 + self.cfg.SEMISUPNET.UNSUP_LOSS_WEIGHT) * losses
 
         metrics_dict = record_dict
         metrics_dict["data_time"] = data_time

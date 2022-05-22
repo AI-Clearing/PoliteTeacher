@@ -111,6 +111,9 @@ _C.SEMISUPNET.EMA_KEEP_RATE = 0.0
 _C.SEMISUPNET.UNSUP_LOSS_WEIGHT = 1.0
 _C.SEMISUPNET.LOSS_WEIGHT_TYPE = "standard"
 _C.SEMISUPNET.MASK_LOSS = False
+_C.SEMISUPNET.NORM_LOSS = False
+_C.SEMISUPNET.NORM_LOSS_KEEP_RATE = 0.9997
+
 
 
 # ---------------------------------------------------------------------------- #
