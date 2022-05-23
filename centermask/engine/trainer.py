@@ -43,6 +43,7 @@ from ubteacher.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 from ubteacher.solver.build import build_lr_scheduler
 from imantics import Polygons, Mask
 from skimage import measure
+from clearml import Logger
 
 # Supervised-only Trainer
 class BaselineTrainer(DefaultTrainer):
@@ -212,17 +213,19 @@ class UBTeacherTrainer(DefaultTrainer):
 
         all_countours = []
 
-        def countur_to_list_and_optional_extend(countur):
+        def countur_to_list_and_optional_extend(countur, mask):
             flatten_countur = countur.ravel().tolist()
 
             if len(flatten_countur) < 6:
+                print("smaller_flatten_countour", flatten_countur)
+                print("non_zero_mask", torch.sum(mask > 0.5))
                 flatten_countur = flatten_countur + flatten_countur[:2] # TODO could be better
             
             return flatten_countur
 
         for mask in pseudo_masks:
             contours = measure.find_contours(mask.cpu().numpy(), 0.5)
-            all_countours.append([countur_to_list_and_optional_extend(countur) for countur in contours])
+            all_countours.append([countur_to_list_and_optional_extend(countur, mask) for countur in contours])
 
         new_proposal_inst.gt_masks = PolygonMasks(all_countours)
 
@@ -362,10 +365,10 @@ class UBTeacherTrainer(DefaultTrainer):
            # POSSIBLE KEYS:
            # ['loss_mask', 'loss_maskiou', 'loss_fcos_cls', 'loss_fcos_loc', 'loss_fcos_ctr', 
            # 'loss_mask_pseudo', 'loss_maskiou_pseudo', 'loss_fcos_cls_pseudo', 'loss_fcos_loc_pseudo', 'loss_fcos_ctr_pseudo'])
-            ignored_loss_keys = ['loss_maskiou_pseudo', 'loss_fcos_loc_pseudo', 'loss_fcos_ctr_pseudo']
+            ignored_loss_keys = ['loss_fcos_loc_pseudo', 'loss_fcos_ctr_pseudo']
 
             if not self.cfg.SEMISUPNET.MASK_LOSS:
-                ignored_loss_keys.append('loss_mask_pseudo')
+                ignored_loss_keys.extend(['loss_mask_pseudo', 'loss_maskiou_pseudo'])
 
             for key in record_dict.keys():
                 if key[:4] == "loss":
