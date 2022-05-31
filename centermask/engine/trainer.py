@@ -183,7 +183,7 @@ class UBTeacherTrainer(DefaultTrainer):
                     self.before_step()
                     self.run_step_full_semisup()
                     self.after_step()
-            except Exception:
+            except:
                 logger.exception("Exception during training:")
                 raise
             finally:
