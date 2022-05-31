@@ -146,7 +146,7 @@ _C.CLEARML.ON = True
 # ---------------------------------------------------------------------------- #
 
 _C.DEBUG_OPT  = CN()
-_C.DEBUG_OPT.BOX_THRESHOLD = 0.7
 _C.DEBUG_OPT.FILTER_PSEUDO_INST = False
 _C.DEBUG_OPT.GRAD_CLIPPING = False
 _C.DEBUG_OPT.LOG_GRADIENT = False
+_C.DEBUG_OPT.PRINTING_MASKS = False

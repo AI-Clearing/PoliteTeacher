@@ -24,7 +24,7 @@ from detectron2.evaluation import (
 from detectron2.layers.mask_ops import paste_masks_in_image
 from centermask.evaluation import COCOEvaluator
 from detectron2.structures.boxes import Boxes
-from detectron2.structures.masks import BitMasks, PolygonMasks
+from detectron2.structures.masks import PolygonMasks, polygons_to_bitmask
 from detectron2.structures.instances import Instances
 from detectron2.utils.env import TORCH_VERSION
 from detectron2.utils.events import EventStorage
@@ -32,6 +32,7 @@ from detectron2.utils.logger import setup_logger
 from fvcore.nn.precise_bn import get_bn_modules
 from torch.nn.parallel import DistributedDataParallel
 from typing_extensions import final
+from centermask.utils.masks_thresholding import binary_mask_to_countour
 from ubteacher.checkpoint.detection_checkpoint import DetectionTSCheckpointer
 from ubteacher.data.build import (
     build_detection_semisup_train_loader,
@@ -42,7 +43,6 @@ from ubteacher.data.dataset_mapper import DatasetMapperTwoCropSeparate
 from ubteacher.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 from ubteacher.solver.build import build_lr_scheduler
 from imantics import Polygons, Mask
-from skimage import measure
 from clearml import Logger
 
 # Supervised-only Trainer
@@ -179,7 +179,6 @@ class UBTeacherTrainer(DefaultTrainer):
         with EventStorage(start_iter) as self.storage:
             try:
                 self.before_train()
-
                 for self.iter in range(start_iter, max_iter):
                     self.before_step()
                     self.run_step_full_semisup()
@@ -212,22 +211,15 @@ class UBTeacherTrainer(DefaultTrainer):
         pseudo_masks = paste_masks_in_image(proposal_bbox_inst.pred_masks[valid_map][:, 0, :, :], new_proposal_inst.gt_boxes, image_shape, mask_thres)
 
         all_countours = []
-
-        def countur_to_list_and_optional_extend(countur, mask):
-            flatten_countur = countur.ravel().tolist()
-
-            if len(flatten_countur) < 6:
-                print("smaller_flatten_countour", flatten_countur)
-                print("non_zero_mask", torch.sum(mask > 0.5))
-                flatten_countur = flatten_countur + flatten_countur[:2] # TODO could be better
             
-            return flatten_countur
-
         for mask in pseudo_masks:
-            contours = measure.find_contours(mask.cpu().numpy(), 0.5)
-            all_countours.append([countur_to_list_and_optional_extend(countur, mask) for countur in contours])
+            all_countours.append(binary_mask_to_countour(mask))
 
         new_proposal_inst.gt_masks = PolygonMasks(all_countours)
+        
+        if self.cfg.DEBUG_OPT.PRINTING_MASKS:
+            new_proposal_inst.bt_gt_masks = [polygons_to_bitmask(m, image_shape[0], image_shape[1]) for m in new_proposal_inst.gt_masks]
+
 
         return new_proposal_inst
 
@@ -355,6 +347,11 @@ class UBTeacherTrainer(DefaultTrainer):
             record_dict.update(record_all_label_data)
             
             if all_unlabel_data: # could be empty bc filtering empty instances
+                
+                if self.cfg.DEBUG_OPT.PRINTING_MASKS and all_unlabel_data[0]["instances"].bt_gt_masks:
+                    Logger.current_logger().report_image("debug", "mask", iteration=self.iter, image= all_unlabel_data[0]["instances"].bt_gt_masks[0]*255)
+                    Logger.current_logger().report_image("debug", "image", iteration=self.iter, image= all_unlabel_data[0]["image"].cpu().numpy().transpose((1,2,0)))
+
                 record_all_unlabel_data = self.model(all_unlabel_data, branch="supervised")
                 new_record_all_unlabel_data = {}
                 for key in record_all_unlabel_data.keys():
