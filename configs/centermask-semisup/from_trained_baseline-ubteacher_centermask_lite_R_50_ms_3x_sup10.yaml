@@ -1,9 +1,6 @@
 _BASE_: "ubteacher_centermask_R_50_FPN_ms_3x.yaml"
 DATALOADER:
   SUP_PERCENT: 10.0
-OUTPUT_DIR: "output/centermask-semisup/ubteacher-CenterMask-R50_FPN-ms-4x-sup10"
-
-OUTPUT_DIR: "output/centermask-semisup/ubteacher-CenterMask-Lite-V-19-slim-ms-4x-sup10"
 
 MODEL:
   WEIGHTS: "/home/azapala/ssis/output/centermask-semisup/baseline_centermask_R_50_FPN_ms_3x_sup10_643daa65565445ef94a44b7ba626e6ea/model_0024999.pth"
