@@ -1,0 +1,5 @@
+_BASE_: "../from_trained_baseline-ubteacher_centermask_lite_R_50_ms_3x_sup10.yaml"
+OUTPUT_DIR: "output/centermask-semisup/lr_exp_pretreined/lr_0003"
+
+SOLVER:
+  BASE_LR: 0.0003
