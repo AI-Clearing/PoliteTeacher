@@ -92,7 +92,7 @@ class DetectionTSCheckpointer(DetectionCheckpointer):
 
     def _load_file(self, f: str) -> Dict[str, Any]:
         checkpoint = super()._load_file(f)
-        checkpoint = checkpoint.pop("model")
+        model_checkpoint = checkpoint.pop("model")
 
         overwrite_model_name = "modelStudent"
         possible_model_name = [overwrite_model_name, "modelTeacher"]
@@ -104,7 +104,7 @@ class DetectionTSCheckpointer(DetectionCheckpointer):
                 return key
 
         modify_checkpoint = {
-            get_new_weigths_key(k): v for k, v in checkpoint.items() 
+            get_new_weigths_key(k): v for k, v in model_checkpoint.items() 
         }
-        checkpoint = {"model": modify_checkpoint}
+        checkpoint = {**{"model": modify_checkpoint}, **checkpoint}
         return checkpoint

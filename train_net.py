@@ -125,7 +125,7 @@ def main(args):
     cfg = setup(args)
     
     if cfg.CLEARML.ON:
-        task = Task.init(project_name="ubteacher", task_name=args.config_file.split("/")[-1] + str(args.opts), reuse_last_task_id=False)
+        task = Task.init(project_name="ubteacher", task_name=args.config_file + str(args.opts), reuse_last_task_id=False)
         task.connect(cfg)
     
     if cfg.SEMISUPNET.Trainer == "baseline":
