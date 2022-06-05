@@ -1,0 +1,11 @@
+_BASE_: "../from_trained_baseline-ubteacher_centermask_lite_R_50_ms_3x_sup10.yaml"
+OUTPUT_DIR: "output/centermask-semisup/best_pretrained/mask_4_gpu"
+
+SEMISUPNET:
+  MASK_LOSS: True
+  MASK_THRESHOLD: 0.5
+
+SOLVER:
+  IMG_PER_BATCH_LABEL: 8
+  IMG_PER_BATCH_UNLABEL: 8 
+  BASE_LR: 0.003
