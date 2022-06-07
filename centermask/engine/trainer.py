@@ -192,8 +192,8 @@ class UBTeacherTrainer(DefaultTrainer):
     # =====================================================
     # ================== Pseduo-labeling ==================
     # =====================================================
-    def threshold_bbox(self, proposal_bbox_inst, thres=None, mask_thres=0.5):
-        valid_map = proposal_bbox_inst.scores > thres
+    def threshold_bbox(self, proposal_bbox_inst, thres=None, mask_thres=0.5, mask_iou_thres=0):
+        valid_map = (proposal_bbox_inst.scores > thres) & (proposal_bbox_inst.maskiou > mask_iou_thres)
 
         # create instances containing boxes and gt_classes
         image_shape = proposal_bbox_inst.image_size
@@ -207,6 +207,7 @@ class UBTeacherTrainer(DefaultTrainer):
         new_proposal_inst.gt_boxes = new_boxes
         new_proposal_inst.scores = proposal_bbox_inst.scores[valid_map]
         new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
+        new_proposal_inst.maskiou = proposal_bbox_inst.maskiou[valid_map]
 
         pseudo_masks = paste_masks_in_image(proposal_bbox_inst.pred_masks[valid_map][:, 0, :, :], new_proposal_inst.gt_boxes, image_shape, mask_thres)
 
@@ -223,7 +224,7 @@ class UBTeacherTrainer(DefaultTrainer):
 
         return new_proposal_inst
 
-    def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, mask_cur_threshold, psedo_label_method=""):
+    def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, mask_cur_threshold, psedo_label_method="", cur_mask_iou_thres=0):
         list_instances = []
         if_empty_instances = []
         num_proposal_output = 0.0
@@ -231,7 +232,7 @@ class UBTeacherTrainer(DefaultTrainer):
             # thresholding
             if psedo_label_method == "thresholding":
                 proposal_bbox_inst = self.threshold_bbox(
-                    proposal_bbox_inst, thres=cur_threshold, mask_thres= mask_cur_threshold
+                    proposal_bbox_inst, thres=cur_threshold, mask_thres= mask_cur_threshold, mask_iou_thres=cur_mask_iou_thres
                 )
             else:
                 raise ValueError("Unkown pseudo label boxes methods")
@@ -315,18 +316,18 @@ class UBTeacherTrainer(DefaultTrainer):
                     _,
                     proposals_rpn_unsup_k,
                     proposals_roih_unsup_k,
-                    _,
+                    to_check,
                 ) = self.model_teacher(unlabel_data_k, branch="unsup_data_weak")
 
             #  Pseudo-labeling
             cur_threshold = self.cfg.SEMISUPNET.BBOX_THRESHOLD
             mask_cur_threshold = self.cfg.SEMISUPNET.MASK_THRESHOLD
-
+            cur_mask_iou_thres = self.cfg.SEMISUPNET.MASK_IOU_VALID_THRESHOLD
             joint_proposal_dict = {}
 
             # Pseudo_labeling for ROI head (bbox location/objectness)
             pesudo_proposals_roih_unsup_k, num_proposal_output, if_empty_instances = self.process_pseudo_label(
-                proposals_roih_unsup_k, cur_threshold, mask_cur_threshold, "thresholding"
+                proposals_roih_unsup_k, cur_threshold, mask_cur_threshold, "thresholding", cur_mask_iou_thres=cur_mask_iou_thres
             )
 
             if self.cfg.DEBUG_OPT.FILTER_PSEUDO_INST:
