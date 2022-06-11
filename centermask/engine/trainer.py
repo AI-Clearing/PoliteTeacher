@@ -300,7 +300,7 @@ class UBTeacherTrainer(DefaultTrainer):
             losses = sum(loss_dict.values())
 
         else:
-            if self.iter == self.cfg.SEMISUPNET.BURN_UP_STEP:
+            if self.iter == self.cfg.SEMISUPNET.BURN_UP_STEP and self.cfg.DEBUG_OPT.UPDATE_STUDENT:
                 # update copy the the whole model
                 self._update_teacher_model(keep_rate=0.00)
 
