@@ -114,7 +114,7 @@ _C.SEMISUPNET.LOSS_WEIGHT_TYPE = "standard"
 _C.SEMISUPNET.MASK_LOSS = False
 _C.SEMISUPNET.NORM_LOSS = False
 _C.SEMISUPNET.NORM_LOSS_KEEP_RATE = 0.9997
-
+_C.SEMISUPNET.WITHOUT_PSEUDO_IOU = False
 
 
 # ---------------------------------------------------------------------------- #

@@ -368,6 +368,9 @@ class UBTeacherTrainer(DefaultTrainer):
             if not self.cfg.SEMISUPNET.MASK_LOSS:
                 ignored_loss_keys.extend(['loss_mask_pseudo', 'loss_maskiou_pseudo'])
 
+            if self.cfg.SEMISUPNET.WITHOUT_PSEUDO_IOU:
+                ignored_loss_keys.append('loss_maskiou_pseudo')
+
             for key in record_dict.keys():
                 if key[:4] == "loss":
                     if key in ignored_loss_keys:

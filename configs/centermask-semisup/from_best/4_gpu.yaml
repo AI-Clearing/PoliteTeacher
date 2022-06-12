@@ -1,0 +1,14 @@
+_BASE_: "../from_trained_baseline-ubteacher_centermask_lite_R_50_ms_3x_sup10.yaml"
+OUTPUT_DIR: "output/centermask-semisup/from_best/4_gpu"
+
+MODEL:
+  WEIGHTS: "/home/azapala/ssis/output/centermask-semisup/from_high_score/mask_4_gpu/model_0139999.pth"
+
+SOLVER:
+  IMG_PER_BATCH_LABEL: 8
+  IMG_PER_BATCH_UNLABEL: 8
+  BASE_LR: 0.003
+  CHECKPOINT_PERIOD: 20000
+
+DEBUG_OPT:
+  UPDATE_STUDENT: False
