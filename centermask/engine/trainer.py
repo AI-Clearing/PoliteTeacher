@@ -40,7 +40,7 @@ from ubteacher.data.build import (
     build_detection_test_loader,
 )
 from ubteacher.data.dataset_mapper import DatasetMapperTwoCropSeparate
-from ubteacher.modeling.meta_arch.ts_ensemble import EnsembleTSModel
+from centermask.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 from ubteacher.solver.build import build_lr_scheduler
 from imantics import Polygons, Mask
 from clearml import Logger
