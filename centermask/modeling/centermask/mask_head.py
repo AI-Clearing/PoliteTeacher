@@ -68,6 +68,7 @@ def mask_rcnn_loss(pred_mask_logits, instances, maskiou_on):
 
     gt_classes = []
     gt_masks = []
+    if_mask_filtered = []
     mask_ratios = []
     for instances_per_image in instances:
         if len(instances_per_image) == 0:
@@ -100,6 +101,8 @@ def mask_rcnn_loss(pred_mask_logits, instances, maskiou_on):
         ).to(device=pred_mask_logits.device)
         # A tensor of shape (N, M, M), N=#instances in the image; M=mask_side_len
         gt_masks.append(gt_masks_per_image)
+        if instances_per_image.has('gt_if_mask_filtered'):
+            if_mask_filtered.append(instances_per_image.gt_if_mask_filtered)
 
     #gt_classes = cat(gt_classes, dim=0)
 
@@ -114,12 +117,14 @@ def mask_rcnn_loss(pred_mask_logits, instances, maskiou_on):
                 selected_mask = pred_mask_logits[selected_index, gt_classes]
             mask_num, mask_h, mask_w = selected_mask.shape
             selected_mask = selected_mask.reshape(mask_num, 1, mask_h, mask_w)
-            return pred_mask_logits.sum() * 0, selected_mask, gt_classes, None
+            return pred_mask_logits.sum() * 0, selected_mask, gt_classes, None # NOTE, lack of penalty if there is no ground truth masks
         
         else:
             return pred_mask_logits.sum() * 0
 
     gt_masks = cat(gt_masks, dim=0)
+    if instances_per_image.has('gt_if_mask_filtered'):
+        if_mask_filtered = cat(if_mask_filtered, dim=0)
 
     if cls_agnostic_mask:
         pred_mask_logits = pred_mask_logits[:, 0]
@@ -150,9 +155,14 @@ def mask_rcnn_loss(pred_mask_logits, instances, maskiou_on):
     storage.put_scalar("mask_rcnn/false_negative", false_negative)
 
     mask_loss = F.binary_cross_entropy_with_logits(
-        pred_mask_logits, gt_masks.to(dtype=torch.float32), reduction="mean"
+        pred_mask_logits, gt_masks.to(dtype=torch.float32), reduction="none"
     )
-    
+
+    if instances_per_image.has('gt_if_mask_filtered'):
+        mask_loss = if_mask_filtered[:, None, None].to(dtype=torch.float32) * mask_loss
+            
+    mask_loss = mask_loss.mean()
+
     if maskiou_on:
         mask_ratios = cat(mask_ratios, dim=0)
 

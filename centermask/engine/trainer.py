@@ -42,7 +42,6 @@ from ubteacher.data.build import (
 from ubteacher.data.dataset_mapper import DatasetMapperTwoCropSeparate
 from centermask.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 from ubteacher.solver.build import build_lr_scheduler
-from imantics import Polygons, Mask
 from clearml import Logger
 
 # Supervised-only Trainer
@@ -193,7 +192,7 @@ class UBTeacherTrainer(DefaultTrainer):
     # ================== Pseduo-labeling ==================
     # =====================================================
     def threshold_bbox(self, proposal_bbox_inst, thres=None, mask_thres=0.5, mask_iou_thres=0):
-        valid_map = (proposal_bbox_inst.scores > thres) & (proposal_bbox_inst.maskiou > mask_iou_thres)
+        valid_map = (proposal_bbox_inst.scores > thres)
 
         # create instances containing boxes and gt_classes
         image_shape = proposal_bbox_inst.image_size
@@ -208,6 +207,7 @@ class UBTeacherTrainer(DefaultTrainer):
         new_proposal_inst.scores = proposal_bbox_inst.scores[valid_map]
         new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
         new_proposal_inst.maskiou = proposal_bbox_inst.maskiou[valid_map]
+        new_proposal_inst.gt_if_mask_filtered = (proposal_bbox_inst.maskiou[valid_map] > mask_iou_thres)
 
         pseudo_masks = paste_masks_in_image(proposal_bbox_inst.pred_masks[valid_map][:, 0, :, :], new_proposal_inst.gt_boxes, image_shape, mask_thres)
 
