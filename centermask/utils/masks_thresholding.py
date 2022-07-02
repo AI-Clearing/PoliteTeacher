@@ -1,5 +1,7 @@
 
 from skimage import measure
+from detectron2.layers.mask_ops import paste_masks_in_image
+from detectron2.structures.masks import PolygonMasks
 
 
 def swap_x_y_in_countour(contour):
@@ -21,4 +23,15 @@ def countour_to_list_and_optional_extend(countour):
 def binary_mask_to_countour(mask):
     contours = measure.find_contours(mask.cpu().numpy(), 0.5)
     return [countour_to_list_and_optional_extend(countur) for countur in contours]
+
+
+
+def get_polygon_masks_from_predictions(prediction_masks, prediction_boxes, image_shape, mask_thres=0.5):
+        pseudo_masks = paste_masks_in_image(prediction_masks[:, 0, :, :], prediction_boxes, image_shape)
+
+        all_countours = []
+            
+        for mask in pseudo_masks:
+            all_countours.append(binary_mask_to_countour(mask))
+        return PolygonMasks(all_countours)
     

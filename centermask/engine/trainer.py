@@ -32,7 +32,7 @@ from detectron2.utils.logger import setup_logger
 from fvcore.nn.precise_bn import get_bn_modules
 from torch.nn.parallel import DistributedDataParallel
 from typing_extensions import final
-from centermask.utils.masks_thresholding import binary_mask_to_countour
+from centermask.utils.masks_thresholding import get_polygon_masks_from_predictions
 from ubteacher.checkpoint.detection_checkpoint import DetectionTSCheckpointer
 from ubteacher.data.build import (
     build_detection_semisup_train_loader,
@@ -208,15 +208,7 @@ class UBTeacherTrainer(DefaultTrainer):
         new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
         new_proposal_inst.maskiou = proposal_bbox_inst.maskiou[valid_map]
         new_proposal_inst.gt_if_mask_filtered = (proposal_bbox_inst.maskiou[valid_map] > mask_iou_thres)
-
-        pseudo_masks = paste_masks_in_image(proposal_bbox_inst.pred_masks[valid_map][:, 0, :, :], new_proposal_inst.gt_boxes, image_shape, mask_thres)
-
-        all_countours = []
-            
-        for mask in pseudo_masks:
-            all_countours.append(binary_mask_to_countour(mask))
-
-        new_proposal_inst.gt_masks = PolygonMasks(all_countours)
+        new_proposal_inst.gt_masks = get_polygon_masks_from_predictions(proposal_bbox_inst.pred_masks[valid_map], new_boxes, image_shape, mask_thres)
         
         if self.cfg.DEBUG_OPT.PRINTING_MASKS:
             new_proposal_inst.bt_gt_masks = [polygons_to_bitmask(m, image_shape[0], image_shape[1]) for m in new_proposal_inst.gt_masks]
@@ -316,7 +308,7 @@ class UBTeacherTrainer(DefaultTrainer):
                     _,
                     proposals_rpn_unsup_k,
                     proposals_roih_unsup_k,
-                    to_check,
+                    _,
                 ) = self.model_teacher(unlabel_data_k, branch="unsup_data_weak")
 
             #  Pseudo-labeling
@@ -352,6 +344,20 @@ class UBTeacherTrainer(DefaultTrainer):
                 if self.cfg.DEBUG_OPT.PRINTING_MASKS and all_unlabel_data[0]["instances"].bt_gt_masks:
                     Logger.current_logger().report_image("debug", "mask", iteration=self.iter, image= all_unlabel_data[0]["instances"].bt_gt_masks[0]*255)
                     Logger.current_logger().report_image("debug", "image", iteration=self.iter, image= all_unlabel_data[0]["image"].cpu().numpy().transpose((1,2,0)))
+
+                    with torch.no_grad():
+                        (
+                            _,
+                            _, 
+                            predictions,
+                            _,
+                        ) = self.model(all_unlabel_data, branch="unsup_data_weak")
+
+                           
+                    polygon_masks = get_polygon_masks_from_predictions(predictions[0].pred_masks, predictions[0].pred_boxes, predictions[0].image_size, 0.5)
+                    bit_masks = [polygons_to_bitmask(m, predictions[0].image_size[0], predictions[0].image_size[1]) for m in polygon_masks]
+                    Logger.current_logger().report_image("debug", "mask_pred", iteration=self.iter, image= bit_masks[0]*255)
+
 
                 record_all_unlabel_data = self.model(all_unlabel_data, branch="supervised")
                 new_record_all_unlabel_data = {}
