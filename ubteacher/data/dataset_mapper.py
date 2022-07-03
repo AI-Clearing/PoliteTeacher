@@ -150,7 +150,7 @@ class DatasetMapperTwoCropSeparate(DatasetMapper):
             np.ascontiguousarray(image_strong_aug.transpose(2, 0, 1))
         )
 
-        dataset_dict["patches"] =  torch.as_tensor(concat_patches(patches, image_size=image_shape))
+        dataset_dict["patches"] =  torch.as_tensor(np.ascontiguousarray(concat_patches(patches, image_size=image_shape)))
 
         dataset_dict_key = copy.deepcopy(dataset_dict)
         dataset_dict_key["image"] = torch.as_tensor(

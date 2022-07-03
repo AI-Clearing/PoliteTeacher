@@ -79,21 +79,23 @@ def mask_rcnn_loss(pred_mask_logits, instances, maskiou_on):
             gt_classes.append(gt_classes_per_image)
 
         if maskiou_on:
-            try:
-                cropped_mask = crop(instances_per_image.gt_masks.polygons, instances_per_image.proposal_boxes.tensor)
+            cropped_mask = crop(instances_per_image.gt_masks.polygons, instances_per_image.proposal_boxes.tensor)
 
-                cropped_mask = torch.tensor(
-                    [mask_utils.area(mask_utils.frPyObjects([p for p in obj], box[3]-box[1], box[2]-box[0])).sum().astype(float)
-                     for obj, box in zip(cropped_mask.polygons, instances_per_image.proposal_boxes.tensor)]
-                 )
-                    
-                mask_ratios.append(
-                    (cropped_mask / instances_per_image.gt_masks.area())
-                    .to(device=pred_mask_logits.device).clamp(min=0., max=1.)
-                )               
-            except IndexError:
-                    mask_ratios.append(torch.Tensor([1] * len(instances_per_image.proposal_boxes)).to(device=pred_mask_logits.device))
-                    Logger.current_logger().report_text("Error in maskiou calculation")
+
+            cropped_mask_areas = []
+
+            for obj, box in zip(cropped_mask.polygons, instances_per_image.proposal_boxes.tensor):
+                if not obj:
+                    cropped_mask_areas.append(0)
+                else:
+                    cropped_mask_areas.append(mask_utils.area(mask_utils.frPyObjects([p for p in obj], box[3]-box[1], box[2]-box[0])).sum().astype(float))
+            
+            cropped_mask = torch.tensor(cropped_mask_areas)
+
+            mask_ratio = (cropped_mask / instances_per_image.gt_masks.area()).to(device=pred_mask_logits.device).clamp(min=0., max=1.)
+            mask_ratio = torch.nan_to_num(mask_ratio, 1)                    
+            mask_ratios.append(mask_ratio)
+
                     
         
         gt_masks_per_image = instances_per_image.gt_masks.crop_and_resize(
