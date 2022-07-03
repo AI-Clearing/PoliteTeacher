@@ -26,12 +26,14 @@ def binary_mask_to_countour(mask):
 
 
 
-def get_polygon_masks_from_predictions(prediction_masks, prediction_boxes, image_shape, mask_thres=0.5):
-        pseudo_masks = paste_masks_in_image(prediction_masks[:, 0, :, :], prediction_boxes, image_shape)
+def get_polygon_masks_from_predictions(prediction_masks, prediction_boxes, image_shape, mask_thres=0.5, patch=None):
+        pseudo_masks = paste_masks_in_image(prediction_masks[:, 0, :, :], prediction_boxes, image_shape, mask_thres)
 
         all_countours = []
             
         for mask in pseudo_masks:
+            if patch is not None:
+                mask = mask & (~ patch.cuda())
             all_countours.append(binary_mask_to_countour(mask))
         return PolygonMasks(all_countours)
     

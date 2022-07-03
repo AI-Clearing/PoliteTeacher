@@ -9,6 +9,7 @@ import detectron2.data.detection_utils as utils
 import detectron2.data.transforms as T
 from detectron2.data.dataset_mapper import DatasetMapper
 from ubteacher.data.detection_utils import build_strong_augmentation
+from ubteacher.data.random_erasing_patch import concat_patches
 
 
 class DatasetMapperTwoCropSeparate(DatasetMapper):
@@ -143,10 +144,13 @@ class DatasetMapperTwoCropSeparate(DatasetMapper):
         # detectron2, which use numpy format for images. Thus, we need to
         # convert to PIL format first.
         image_pil = Image.fromarray(image_weak_aug.astype("uint8"), "RGB")
-        image_strong_aug = np.array(self.strong_augmentation(image_pil))
+        img, patches = self.strong_augmentation(image_pil)
+        image_strong_aug = np.array(img)
         dataset_dict["image"] = torch.as_tensor(
             np.ascontiguousarray(image_strong_aug.transpose(2, 0, 1))
         )
+
+        dataset_dict["patches"] =  torch.as_tensor(concat_patches(patches, image_size=image_shape))
 
         dataset_dict_key = copy.deepcopy(dataset_dict)
         dataset_dict_key["image"] = torch.as_tensor(

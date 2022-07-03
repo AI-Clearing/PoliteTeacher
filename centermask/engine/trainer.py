@@ -191,7 +191,7 @@ class UBTeacherTrainer(DefaultTrainer):
     # =====================================================
     # ================== Pseduo-labeling ==================
     # =====================================================
-    def threshold_bbox(self, proposal_bbox_inst, thres=None, mask_thres=0.5, mask_iou_thres=0):
+    def threshold_bbox(self, proposal_bbox_inst, patch, thres=None, mask_thres=0.5, mask_iou_thres=0):
         valid_map = (proposal_bbox_inst.scores > thres)
 
         # create instances containing boxes and gt_classes
@@ -208,7 +208,12 @@ class UBTeacherTrainer(DefaultTrainer):
         new_proposal_inst.gt_classes = proposal_bbox_inst.pred_classes[valid_map]
         new_proposal_inst.maskiou = proposal_bbox_inst.maskiou[valid_map]
         new_proposal_inst.gt_if_mask_filtered = (proposal_bbox_inst.maskiou[valid_map] > mask_iou_thres)
-        new_proposal_inst.gt_masks = get_polygon_masks_from_predictions(proposal_bbox_inst.pred_masks[valid_map], new_boxes, image_shape, mask_thres)
+
+
+        if not self.cfg.SEMISUPNET.PATCH_GT_MASK:
+            patch = None
+
+        new_proposal_inst.gt_masks = get_polygon_masks_from_predictions(proposal_bbox_inst.pred_masks[valid_map], new_boxes, image_shape, mask_thres, patch)
         
         if self.cfg.DEBUG_OPT.PRINTING_MASKS:
             new_proposal_inst.bt_gt_masks = [polygons_to_bitmask(m, image_shape[0], image_shape[1]) for m in new_proposal_inst.gt_masks]
@@ -216,15 +221,15 @@ class UBTeacherTrainer(DefaultTrainer):
 
         return new_proposal_inst
 
-    def process_pseudo_label(self, proposals_rpn_unsup_k, cur_threshold, mask_cur_threshold, psedo_label_method="", cur_mask_iou_thres=0):
+    def process_pseudo_label(self, proposals_rpn_unsup_k, patches, cur_threshold, mask_cur_threshold, psedo_label_method="", cur_mask_iou_thres=0):
         list_instances = []
         if_empty_instances = []
         num_proposal_output = 0.0
-        for proposal_bbox_inst in proposals_rpn_unsup_k:
+        for proposal_bbox_inst, patch in zip(proposals_rpn_unsup_k, patches):
             # thresholding
             if psedo_label_method == "thresholding":
                 proposal_bbox_inst = self.threshold_bbox(
-                    proposal_bbox_inst, thres=cur_threshold, mask_thres= mask_cur_threshold, mask_iou_thres=cur_mask_iou_thres
+                    proposal_bbox_inst, patch,  thres=cur_threshold, mask_thres= mask_cur_threshold, mask_iou_thres=cur_mask_iou_thres
                 )
             else:
                 raise ValueError("Unkown pseudo label boxes methods")
@@ -317,9 +322,10 @@ class UBTeacherTrainer(DefaultTrainer):
             cur_mask_iou_thres = self.cfg.SEMISUPNET.MASK_IOU_VALID_THRESHOLD
             joint_proposal_dict = {}
 
+            patches = [unlabel['patches'] for  unlabel in unlabel_data_k]
             # Pseudo_labeling for ROI head (bbox location/objectness)
             pesudo_proposals_roih_unsup_k, num_proposal_output, if_empty_instances = self.process_pseudo_label(
-                proposals_roih_unsup_k, cur_threshold, mask_cur_threshold, "thresholding", cur_mask_iou_thres=cur_mask_iou_thres
+                proposals_roih_unsup_k, patches, cur_threshold, mask_cur_threshold, "thresholding", cur_mask_iou_thres=cur_mask_iou_thres
             )
 
             if self.cfg.DEBUG_OPT.FILTER_PSEUDO_INST:
