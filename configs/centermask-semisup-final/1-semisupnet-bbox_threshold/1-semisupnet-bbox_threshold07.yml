@@ -1,0 +1,5 @@
+_BASE_: "semisupnet-bbox_threshold.yml"
+OUTPUT_DIR: "/nas/aic-research/ssis/output/centermask-semisup-final/1-semisupnet-bbox_threshold/1-semisupnet-bbox_threshold07.yml"
+
+SEMISUPNET:
+    BBOX_THRESHOLD: 0.7

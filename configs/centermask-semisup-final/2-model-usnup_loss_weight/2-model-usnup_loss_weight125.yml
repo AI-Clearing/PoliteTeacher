@@ -1,0 +1,5 @@
+_BASE_: "semisupnet-bbox_threshold.yml"
+OUTPUT_DIR: "/nas/aic-research/ssis/output/centermask-semisup-final/2-model-usnup_loss_weight/2-model-usnup_loss_weight125.yml"
+
+SEMISUPNET:
+  UNSUP_LOSS_WEIGHT: 1.25

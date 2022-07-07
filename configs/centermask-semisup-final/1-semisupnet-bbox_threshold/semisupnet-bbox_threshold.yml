@@ -1,0 +1,4 @@
+_BASE_: "../ablation-base.yaml"
+
+SEMISUPNET:
+  MASK_LOSS: False

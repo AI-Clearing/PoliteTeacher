@@ -1,0 +1,5 @@
+_BASE_: "semisupnet-mask_loss.yml"
+OUTPUT_DIR: "/nas/aic-research/ssis/output/centermask-semisup-final/3-semisupnet-mask_loss/3-semisupnet-mask_loss09.yml"
+
+SEMISUPNET:
+  MASK_IOU_VALID_THRESHOLD: : 0.9

@@ -1,0 +1,6 @@
+_BASE_: "../ablation-base.yaml"
+
+SEMISUPNET:
+  MASK_LOSS: True
+  BBOX_THRESHOLD: # TODO: best from #1
+  UNSUP_LOSS_WEIGHT: # TODO: best from #2
