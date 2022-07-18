@@ -124,7 +124,7 @@ def setup(args):
 def main(args):
     cfg = setup(args)
     
-    if cfg.CLEARML.ON:
+    if cfg.CLEARML.ON and comm.get_rank() == 0:
         task = Task.init(project_name="ubteacher", task_name=args.config_file + str(args.opts), reuse_last_task_id=False)
         task.connect(cfg)
     
