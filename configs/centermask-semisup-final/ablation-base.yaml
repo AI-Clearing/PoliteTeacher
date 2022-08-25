@@ -1,5 +1,6 @@
 _BASE_: "ubteacher_centermask_R_50_FPN_ms_3x_sup5.yaml"
 VERSION: 2
+SEED: 1
 
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
