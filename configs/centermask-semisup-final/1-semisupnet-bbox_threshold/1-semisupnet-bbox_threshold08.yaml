@@ -1,0 +1,5 @@
+_BASE_: "semisupnet-bbox_threshold.yaml"
+OUTPUT_DIR: "output/centermask-semisup-final/1-semisupnet-bbox_threshold/1-semisupnet-bbox_threshold08"
+
+SEMISUPNET:
+    BBOX_THRESHOLD: 0.8

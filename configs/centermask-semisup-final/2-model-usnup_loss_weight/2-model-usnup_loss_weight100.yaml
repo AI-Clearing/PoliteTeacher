@@ -1,0 +1,5 @@
+_BASE_: "semisupnet-bbox_threshold.yaml"
+OUTPUT_DIR: "output/centermask-semisup-final/2-model-usnup_loss_weight/2-model-usnup_loss_weight100"
+
+SEMISUPNET:
+  UNSUP_LOSS_WEIGHT: 1.00
