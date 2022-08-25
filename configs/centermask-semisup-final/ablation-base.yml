@@ -1,4 +1,5 @@
-_BASE_: "ubteacher_centermask_R_50_FPN_ms_3x_sup5.yml"
+_BASE_: "ubteacher_centermask_R_50_FPN_ms_3x_sup5.yaml"
+VERSION: 2
 
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
@@ -9,15 +10,15 @@ SOLVER:
   BASE_LR: 0.006
 
 MODEL:
-  WEIGHTS: # TODO: best model from expetiment #0 (baseline)
+  WEIGHTS: "/home/dfilipiak/projects/ssis/output/baseline_centermask_R_50_FPN_ms_3x_sup5/model_0029999.pth"
+
+SEMISUPNET:
+  Trainer: "ubteacher"
   BBOX_THRESHOLD: 0.6
   TEACHER_UPDATE_ITER: 1
   BURN_UP_STEP: 0
   EMA_KEEP_RATE: 0.9996
   UNSUP_LOSS_WEIGHT: 0.75
-
-SEMISUPNET:
-  Trainer: "ubteacher"
 
 DEBUG_OPT:
   GRAD_CLIPPING: False
