@@ -2,5 +2,5 @@ _BASE_: "../ablation-base.yaml"
 
 SEMISUPNET:
   MASK_LOSS: True
-  BBOX_THRESHOLD: # TODO: best from #1
-  UNSUP_LOSS_WEIGHT: # TODO: best from #2
+  BBOX_THRESHOLD: 0.6 # best from #1
+  UNSUP_LOSS_WEIGHT: 2.0 # best from #2
