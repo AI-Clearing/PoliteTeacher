@@ -1,10 +1,12 @@
 _BASE_: "Base-baseline_centermask_R_50_FPN_ms_3x.yaml"
  
+SEED: 1
 # TODO: poprawić hiperparametry po ablacjach
 SEMISUPNET:
   Trainer: "ubteacher"
   BBOX_THRESHOLD: 0.6
   UNSUP_LOSS_WEIGHT: 2.00
+  MASK_LOSS: True
   MASK_IOU_VALID_THRESHOLD: 0.9
   TEACHER_UPDATE_ITER: 1
   BURN_UP_STEP: 0
@@ -12,6 +14,7 @@ SEMISUPNET:
 
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  NUM_DECAYS: 3
   STEPS: (179990, 179995)
   MAX_ITER: 180000
   IMG_PER_BATCH_LABEL: 16
