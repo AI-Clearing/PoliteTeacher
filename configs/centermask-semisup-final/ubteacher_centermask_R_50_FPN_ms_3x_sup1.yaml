@@ -2,3 +2,6 @@ _BASE_: "ubteacher_centermask_R_50_FPN_ms_3x.yaml"
 DATALOADER:
   SUP_PERCENT: 1.0
 OUTPUT_DIR: "/nas/aic-research/ssis/output/centermask-semisup/ubteacher-CenterMask-R50_FPN-ms-4x-sup1"
+
+MODEL:
+  WEIGHTS: "/nas/aic-research/ssis/output/centermask-semisup-final/baseline_centermask_R_50_FPN_ms_3x_sup1/model_0009999.pth"
