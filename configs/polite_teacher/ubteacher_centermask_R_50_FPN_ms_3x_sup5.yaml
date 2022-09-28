@@ -4,4 +4,4 @@ DATALOADER:
 OUTPUT_DIR: "/nas/aic-research/ssis/output/centermask-semisup-final/ubteacher-CenterMask-R50_FPN-ms-4x-sup5"
 
 MODEL:
-  WEIGHTS: "/nas/aic-research/ssis/output/centermask-semisup/baseline_centermask_R_50_FPN_ms_3x_sup5/model_0029999.pth"
+  WEIGHTS: "/home/dfilipiak_priv/projects/ssis/output/baseline_centermask_R_50_FPN_ms_3x_sup5/model_0029999.pth"
