@@ -1,6 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 # Modified by Youngwan Lee (ETRI), 2020. All Rights Reserved.
-# Modified by Dominik Filipiak (AI Clearing), 2021. All Rights Reserved.
 import logging
 import os
 from collections import OrderedDict

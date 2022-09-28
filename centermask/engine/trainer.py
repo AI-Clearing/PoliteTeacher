@@ -1,5 +1,4 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-# Modified by Dominik Filipiak (AI Clearing), 2021. All Rights Reserved.
 import logging
 import os
 import time
