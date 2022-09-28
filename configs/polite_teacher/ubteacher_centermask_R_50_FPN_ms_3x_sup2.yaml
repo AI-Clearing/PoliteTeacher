@@ -1,7 +1,0 @@
-_BASE_: "ubteacher_centermask_R_50_FPN_ms_3x.yaml"
-DATALOADER:
-  SUP_PERCENT: 2.0
-OUTPUT_DIR: "output/polite_teacher/ubteacher-CenterMask-R50_FPN-ms-4x-sup2"
-
-MODEL:
-  WEIGHTS: "output/centermask-semisup/baseline_centermask_R_50_FPN_ms_3x_sup2/model_0014999.pth"

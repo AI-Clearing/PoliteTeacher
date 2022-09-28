@@ -11,7 +11,7 @@ SOLVER:
   BASE_LR: 0.006
 
 MODEL:
-  WEIGHTS: "output/baseline_centermask_R_50_FPN_ms_3x_sup5/model_0029999.pth"
+  WEIGHTS: "output/centermask/baseline_centermask_R_50_FPN_ms_3x_sup5/model_0029999.pth"
 
 SEMISUPNET:
   Trainer: "ubteacher"
