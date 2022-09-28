@@ -1,5 +1,0 @@
-_BASE_: "Base-baseline_centermask_lite_V_19_slim_eSE_FPN_ms_4x.yaml"
-DATALOADER:
-  SUP_PERCENT: 5.0
-OUTPUT_DIR: "output/centermask-semisup/baseline-CenterMask-Lite-V-19-slim-ms-4x-sup5"
-

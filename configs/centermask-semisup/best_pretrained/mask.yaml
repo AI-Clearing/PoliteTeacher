@@ -1,6 +1,0 @@
-_BASE_: "../from_trained_baseline-ubteacher_centermask_lite_R_50_ms_3x_sup10.yaml"
-OUTPUT_DIR: "output/centermask-semisup/best_pretrained/mask"
-
-SEMISUPNET:
-  MASK_LOSS: True
-  MASK_THRESHOLD: 0.5

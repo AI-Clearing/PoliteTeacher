@@ -1,9 +1,0 @@
-_BASE_: "ubteacher_centermask_R_50_FPN_ms_3x.yaml"
-DATALOADER:
-  SUP_PERCENT: 10.0
-
-MODEL:
-  WEIGHTS: "/home/azapala/ssis/output/centermask-semisup/baseline_centermask_R_50_FPN_ms_3x_sup10_643daa65565445ef94a44b7ba626e6ea/model_0024999.pth"
-
-SEMISUPNET:
-  BURN_UP_STEP: 1

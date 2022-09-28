@@ -1,6 +1,0 @@
-_BASE_: "common_setting_sup10.yaml"
-OUTPUT_DIR: "output/centermask-semisup/method_comparison/mask_iou_0.7"
-
-SEMISUPNET:
-  MASK_LOSS: True
-  MASK_IOU_VALID_THRESHOLD: 0.7
