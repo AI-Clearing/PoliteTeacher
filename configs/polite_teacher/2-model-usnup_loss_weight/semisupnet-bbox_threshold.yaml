@@ -1,0 +1,5 @@
+_BASE_: "../ablation-base.yaml"
+
+SEMISUPNET:
+  MASK_LOSS: False
+  BBOX_THRESHOLD: 0.6

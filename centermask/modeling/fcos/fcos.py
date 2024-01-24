@@ -1,5 +1,6 @@
 import math
-from typing import List, Dict
+from typing import Dict, List
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -58,7 +59,7 @@ class FCOS(nn.Module):
         self.sizes_of_interest = soi
         self.fcos_head = FCOSHead(cfg, [input_shape[f] for f in self.in_features])
 
-    def forward(self, images, features, gt_instances):
+    def forward(self, images, features, gt_instances, compute_loss=True):
         """
         Arguments:
             images (list[Tensor] or ImageList): images to be processed
@@ -106,7 +107,7 @@ class FCOS(nn.Module):
             gt_instances,
         )
 
-        if self.training:
+        if self.training and compute_loss:
             losses, _ = outputs.losses()
             if self.mask_on:
                 proposals = outputs.predict_proposals()

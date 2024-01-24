@@ -1,18 +1,23 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 # Modified by Youngwan Lee (ETRI), 2020. All Rights Reserved.
-# Modified by Dominik Filipiak (AI Clearing), 2021. All Rights Reserved.
 import logging
 import os
 from collections import OrderedDict
-import torch
+from random import randint
 
 import detectron2.utils.comm as comm
+import torch
+from clearml import Task
+from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.data import MetadataCatalog
-from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, hooks, launch
-from detectron2.evaluation import (
-    # CityscapesInstanceEvaluator,
-    # CityscapesSemSegEvaluator,
-    # COCOEvaluator,
+from detectron2.engine import (
+    DefaultTrainer,
+    default_argument_parser,
+    default_setup,
+    hooks,
+    launch,
+)
+from detectron2.evaluation import (  # CityscapesInstanceEvaluator,; CityscapesSemSegEvaluator,; COCOEvaluator,
     COCOPanopticEvaluator,
     DatasetEvaluators,
     LVISEvaluator,
@@ -20,16 +25,19 @@ from detectron2.evaluation import (
     SemSegEvaluator,
     verify_results,
 )
-from centermask.evaluation import (
-    COCOEvaluator,
-    CityscapesInstanceEvaluator,
-    CityscapesSemSegEvaluator
-)
 from detectron2.modeling import GeneralizedRCNNWithTTA
-from detectron2.checkpoint import DetectionCheckpointer
-from centermask.config import get_cfg
 
-from centermask.engine.trainer import BaselineTrainer
+from centermask.config import get_cfg
+from centermask.engine.trainer import BaselineTrainer, UBTeacherTrainer
+from centermask.evaluation import (
+    CityscapesInstanceEvaluator,
+    CityscapesSemSegEvaluator,
+    COCOEvaluator,
+)
+
+# hacky way to register
+from centermask.modeling.meta_arch.rcnn import TwoStagePseudoLabGeneralizedRCNN
+from centermask.modeling.meta_arch.ts_ensemble import EnsembleTSModel
 
 
 class Trainer(DefaultTrainer):
@@ -37,8 +45,6 @@ class Trainer(DefaultTrainer):
     This is the same Trainer except that we rewrite the
     `build_train_loader` method.
     """
-
-
 
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
@@ -80,9 +86,7 @@ class Trainer(DefaultTrainer):
             return LVISEvaluator(dataset_name, output_dir=output_folder)
         if len(evaluator_list) == 0:
             raise NotImplementedError(
-                "no Evaluator for the dataset {} with the type {}".format(
-                    dataset_name, evaluator_type
-                )
+                "no Evaluator for the dataset {} with the type {}".format(dataset_name, evaluator_type)
             )
         elif len(evaluator_list) == 1:
             return evaluator_list[0]
@@ -96,15 +100,12 @@ class Trainer(DefaultTrainer):
         logger.info("Running inference with test-time augmentation ...")
         model = GeneralizedRCNNWithTTA(cfg, model)
         evaluators = [
-            cls.build_evaluator(
-                cfg, name, output_folder=os.path.join(cfg.OUTPUT_DIR, "inference_TTA")
-            )
+            cls.build_evaluator(cfg, name, output_folder=os.path.join(cfg.OUTPUT_DIR, "inference_TTA"))
             for name in cfg.DATASETS.TEST
         ]
         res = cls.test(cfg, model, evaluators)
         res = OrderedDict({k + "_TTA": v for k, v in res.items()})
         return res
-
 
 
 def setup(args):
@@ -121,33 +122,41 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
+    
+    if cfg.CLEARML.ON and comm.get_rank() == 0:
+        task = Task.init(project_name="ubteacher", task_name=args.config_file + str(args.opts), reuse_last_task_id=False)
+        task.connect(cfg)
+    
     if cfg.SEMISUPNET.Trainer == "baseline":
         Trainer = BaselineTrainer
+    elif cfg.SEMISUPNET.Trainer == "ubteacher":
+        Trainer = UBTeacherTrainer
     else:
         pass  # we're training oracle (fully supervised) model
 
     if args.eval_only:
-        model = Trainer.build_model(cfg)
-        DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
-            cfg.MODEL.WEIGHTS, resume=args.resume
-        )
-        res = Trainer.test(cfg, model)
-        if cfg.TEST.AUG.ENABLED:
-            res.update(Trainer.test_with_TTA(cfg, model))
-        if comm.is_main_process():
-            verify_results(cfg, res)
+        if cfg.SEMISUPNET.Trainer == "ubteacher":
+            model = Trainer.build_model(cfg)
+            model_teacher = Trainer.build_model(cfg)
+            ensem_ts_model = EnsembleTSModel(model_teacher, model)
+
+            DetectionCheckpointer(ensem_ts_model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
+                cfg.MODEL.WEIGHTS, resume=args.resume
+            )
+            res = Trainer.test(cfg, ensem_ts_model.modelTeacher)
+
+        else:
+            model = Trainer.build_model(cfg)
+            DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(cfg.MODEL.WEIGHTS, resume=args.resume)
+            res = Trainer.test(cfg, model)
         return res
 
-    """
-    If you'd like to do anything fancier than the standard training logic,
-    consider writing your own training loop or subclassing the trainer.
-    """
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)
+
     if cfg.TEST.AUG.ENABLED:
-        trainer.register_hooks(
-            [hooks.EvalHook(0, lambda: trainer.test_with_TTA(cfg, trainer.model))]
-        )
+        trainer.register_hooks([hooks.EvalHook(0, lambda: trainer.test_with_TTA(cfg, trainer.model))])
+
     return trainer.train()
 
 

@@ -1,7 +1,6 @@
 # Copyright (c) Youngwan Lee (ETRI) All Rights Reserved.
-from detectron2.config.defaults import _C
 from detectron2.config import CfgNode as CN
-
+from detectron2.config.defaults import _C
 
 # ---------------------------------------------------------------------------- #
 # Additional Configs
@@ -46,7 +45,7 @@ _C.MODEL.FCOS.NUM_BOX_CONVS = 4
 _C.MODEL.FCOS.NUM_SHARE_CONVS = 0
 _C.MODEL.FCOS.CENTER_SAMPLE = True
 _C.MODEL.FCOS.POS_RADIUS = 1.5
-_C.MODEL.FCOS.LOC_LOSS_TYPE = 'giou'
+_C.MODEL.FCOS.LOC_LOSS_TYPE = "giou"
 
 
 # ---------------------------------------------------------------------------- #
@@ -103,3 +102,54 @@ _C.DATALOADER.SAMPLER_TRAIN = "TrainingSampler"
 # ---------------------------------------------------------------------------- #
 _C.SEMISUPNET = CN()
 _C.SEMISUPNET.Trainer = "DefaultTrainer"
+_C.SEMISUPNET.BBOX_THRESHOLD = 0.7
+_C.SEMISUPNET.MASK_IOU_VALID_THRESHOLD = 0.0
+_C.SEMISUPNET.MASK_THRESHOLD = 0.5
+_C.SEMISUPNET.PSEUDO_BBOX_SAMPLE = "thresholding"
+_C.SEMISUPNET.TEACHER_UPDATE_ITER = 1
+_C.SEMISUPNET.BURN_UP_STEP = 12000
+_C.SEMISUPNET.EMA_KEEP_RATE = 0.0
+_C.SEMISUPNET.UNSUP_LOSS_WEIGHT = 1.0
+_C.SEMISUPNET.LOSS_WEIGHT_TYPE = "standard"
+_C.SEMISUPNET.MASK_LOSS = False
+_C.SEMISUPNET.NORM_LOSS = False
+_C.SEMISUPNET.NORM_LOSS_KEEP_RATE = 0.9997
+_C.SEMISUPNET.WITHOUT_PSEUDO_IOU = False
+_C.SEMISUPNET.PATCH_GT_MASK= False
+
+
+# ---------------------------------------------------------------------------- #
+# Solver (from Unbiased Teacher)
+# ---------------------------------------------------------------------------- #
+
+_C.SOLVER.IMG_PER_BATCH_LABEL = 1
+_C.SOLVER.IMG_PER_BATCH_UNLABEL = 1
+_C.SOLVER.FACTOR_LIST = (1,)
+_C.SOLVER.CHECKPOINT_PERIOD = 100000
+
+# ---------------------------------------------------------------------------- #
+# Datasets (from Unbiased Teacher)
+# ---------------------------------------------------------------------------- #
+_C.DATASETS.TRAIN_LABEL = ("coco_2017_train",)
+_C.DATASETS.TRAIN_UNLABEL = ("coco_2017_train",)
+_C.DATASETS.CROSS_DATASET = False
+
+
+# ---------------------------------------------------------------------------- #
+# CLEARML
+# ---------------------------------------------------------------------------- #
+
+_C.CLEARML = CN()
+_C.CLEARML.ON = True
+
+
+# ---------------------------------------------------------------------------- #
+# DEBUGGING IDEAS
+# ---------------------------------------------------------------------------- #
+
+_C.DEBUG_OPT  = CN()
+_C.DEBUG_OPT.FILTER_PSEUDO_INST = False
+_C.DEBUG_OPT.GRAD_CLIPPING = False
+_C.DEBUG_OPT.LOG_GRADIENT = False
+_C.DEBUG_OPT.PRINTING_MASKS = False
+_C.DEBUG_OPT.UPDATE_STUDENT = True

@@ -1,0 +1,5 @@
+_BASE_: "semisupnet-mask_loss.yaml"
+OUTPUT_DIR: "output/polite_teacher/3-semisupnet-mask_loss/3-semisupnet-mask_loss09"
+
+SEMISUPNET:
+  MASK_IOU_VALID_THRESHOLD: 0.9
